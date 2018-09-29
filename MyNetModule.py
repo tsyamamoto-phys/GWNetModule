@@ -105,6 +105,41 @@ class RingdownNet(nn.Module):
         return x
 
 
+
+class ErrorbarEstimateNet(nn.Module):
+
+    def __init__(self, out_features):
+        super(ErrorbarEstimateNet, self).__init__()
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=64, kernel_size=16)
+        self.pool1 = nn.MaxPool1d(4, stride=4)
+        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=16, dilation=2)
+        self.pool2 = nn.MaxPool1d(4, stride=4)
+        self.conv3 = nn.Conv1d(in_channels=128, out_channels=256, kernel_size=16, dilation=2)
+        self.pool3 = nn.MaxPool1d(4, stride=4)
+        self.conv4 = nn.Conv1d(in_channels=256, out_channels=512, kernel_size=32, dilation=2)
+        self.pool4 = nn.MaxPool1d(4, stride=4)
+
+        self.dense1 = nn.Linear(in_features=512*14, out_features=128)
+        self.dense2 = nn.Linear(in_features=128, out_features=64)
+        self.dense3 = nn.Linear(in_features=64, out_features=out_features)
+
+
+    def forward(self, x):
+        x = F.relu(self.pool1(self.conv1(x)))
+        x = F.relu(self.pool2(self.conv2(x)))
+        x = F.relu(self.pool3(self.conv3(x)))
+        x = F.relu(self.pool4(self.conv4(x)))
+        x = x.view(-1, 512*14)
+        x = F.relu(self.dense1(x))
+        x = F.relu(self.dense2(x))
+        x = F.softmax(self.dense3(x))
+        return x
+        
+
+
+
+    
+
 class MeanRelativeError(nn.Module):
     '''
     In PyTorch, mean relative error is not defined as loss function.
@@ -159,16 +194,38 @@ class MassSpinConsistencyPenalty(nn.Module):
         
         return torch.mean(loss)
     
+
+
+
+    
+def array2vecs(array, vmin, vmax, bins):
+    N = array.shape[0]
+    vecs = np.zeros((N, bins), dtype=int)
+    dv = (vmax - vmin) / bins
+    bin_array = np.arange(vmin, vmax+dv, dv)
+    for j in range(N):
+        value = array[j]
+        for i in range(bins-1):
+            binmin = bin_array[i]
+            binmax = bin_array[i+1]
+            if (binmin<=value) and (value<binmax):
+                vecs[j, i] = 1
+
+    return vecs
+
+    
+
+
     
 if __name__ == '__main__':
     
+    print(' This is the demonstration.')
     '''
     This main function is for checking the module.
     '''
-    
-    print(' This is the demonstration.')
-    pen =  MassSpinConsistencyPenalty()
-    m1 = torch.Tensor([3.0])
-    m2 = torch.Tensor([3.0])
-    a = pen._mass2spin(m1, m2)
-    print(a)
+    array = np.array([1.23, 1.89])
+    vmin = 1.0
+    vmax = 2.0
+    bins = 10
+    vecs = array2vecs(array, vmin, vmax, bins)
+    print(vecs)
