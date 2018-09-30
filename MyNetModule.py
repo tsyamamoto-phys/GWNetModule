@@ -199,6 +199,7 @@ class MassSpinConsistencyPenalty(nn.Module):
 
     
 def array2vecs(array, vmin, vmax, bins):
+    array = array.astype(np.float32)
     N = array.shape[0]
     vecs = np.zeros((N, bins), dtype=int)
     dv = (vmax - vmin) / bins
@@ -210,7 +211,10 @@ def array2vecs(array, vmin, vmax, bins):
             binmax = bin_array[i+1]
             if (binmin<=value) and (value<binmax):
                 vecs[j, i] = 1
+                break
 
+
+    assert vecs.sum(axis=1).all()==np.ones(N).all(), "Incorrectly labeled"
     return vecs
 
     
