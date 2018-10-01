@@ -132,7 +132,7 @@ class ErrorbarEstimateNet(nn.Module):
         x = x.view(-1, 512*14)
         x = F.relu(self.dense1(x))
         x = F.relu(self.dense2(x))
-        x = F.softmax(self.dense3(x))
+        x = F.softmax(self.dense3(x), dim=1)
         return x
         
 
