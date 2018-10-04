@@ -203,10 +203,10 @@ def array2vecs(array, vmin, vmax, bins):
     N = array.shape[0]
     vecs = np.zeros((N, bins), dtype=int)
     dv = (vmax - vmin) / bins
-    bin_array = np.arange(vmin, vmax+dv, dv)
+    bin_array = np.arange(vmin, vmax+dv/2., dv)
     for j in range(N):
         value = array[j]
-        for i in range(bins-1):
+        for i in range(bins):
             binmin = bin_array[i]
             binmax = bin_array[i+1]
             if (binmin<=value) and (value<binmax):
@@ -227,9 +227,9 @@ if __name__ == '__main__':
     '''
     This main function is for checking the module.
     '''
-    array = np.array([1.23, 1.89])
-    vmin = 1.0
-    vmax = 2.0
-    bins = 10
+    array = np.array([1.23, 65.29])
+    vmin = 0
+    vmax = 70
+    bins = 14
     vecs = array2vecs(array, vmin, vmax, bins)
     print(vecs)
