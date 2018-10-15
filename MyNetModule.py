@@ -111,25 +111,25 @@ class ErrorbarEstimateNet(nn.Module):
     def __init__(self, out_features):
         super(ErrorbarEstimateNet, self).__init__()
         self.conv1 = nn.Conv1d(in_channels=1, out_channels=64, kernel_size=16)
-        self.pool1 = nn.MaxPool1d(4, stride=4)
-        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=16, dilation=2)
+        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=16)
         self.pool2 = nn.MaxPool1d(4, stride=4)
         self.conv3 = nn.Conv1d(in_channels=128, out_channels=256, kernel_size=16, dilation=2)
-        self.pool3 = nn.MaxPool1d(4, stride=4)
-        self.conv4 = nn.Conv1d(in_channels=256, out_channels=512, kernel_size=32, dilation=2)
+        self.conv4 = nn.Conv1d(in_channels=256, out_channels=512, kernel_size=16, dilation=2)
         self.pool4 = nn.MaxPool1d(4, stride=4)
+        self.conv5 = nn.Conv1d(in_channels=512, out_channels=1024, kernel_size=32, dilation=2)
 
-        self.dense1 = nn.Linear(in_features=512*14, out_features=128)
-        self.dense2 = nn.Linear(in_features=128, out_features=64)
-        self.dense3 = nn.Linear(in_features=64, out_features=out_features)
+        self.dense1 = nn.Linear(in_features=1024*433, out_features=512)
+        self.dense2 = nn.Linear(in_features=512, out_features=128)
+        self.dense3 = nn.Linear(in_features=128, out_features=out_features)
 
 
     def forward(self, x):
-        x = F.relu(self.pool1(self.conv1(x)))
+        x = F.relu(self.conv1(x))
         x = F.relu(self.pool2(self.conv2(x)))
-        x = F.relu(self.pool3(self.conv3(x)))
+        x = F.relu(self.conv3(x))
         x = F.relu(self.pool4(self.conv4(x)))
-        x = x.view(-1, 512*14)
+        x = F.relu(self.conv5(x))
+        x = x.view(-1, 1024*433)
         x = F.relu(self.dense1(x))
         x = F.relu(self.dense2(x))
         x = F.softmax(self.dense3(x), dim=1)
@@ -227,9 +227,15 @@ if __name__ == '__main__':
     '''
     This main function is for checking the module.
     '''
-    array = np.array([1.23, 65.29])
-    vmin = 0
-    vmax = 70
-    bins = 14
-    vecs = array2vecs(array, vmin, vmax, bins)
-    print(vecs)
+    net = ErrorbarEstimateNet(70)
+    net = net.cuda()
+
+    x = torch.Tensor(np.random.randn(1,1,8192))
+    x = x.cuda()
+    
+    y = net(x)
+    print(type(y))
+    y.cpu()
+    
+    print(y)
+
