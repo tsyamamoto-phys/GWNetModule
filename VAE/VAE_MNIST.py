@@ -67,62 +67,160 @@ class MNIST_AE(nn.Module):
 
 class MNIST_VAE(nn.Module):
 
-    def __init__(self, in_features, hidden_features):
+    def __init__(self, in_features, hidden_vars, stddiag=True):
         super(MNIST_VAE, self).__init__()
         '''
         hidden_features: the number of the hidden variables
         hidden_params: the number of the parameters the posterior distribution has.
+        stddiag: If True, the std of hidden variables is a diagonal matrix.
         Assuming the posterior is the isotropic gaussian,
         hidden_params = hidden_features + 1 (1 comes from the variance).
         '''
-        self.hidden_features = hidden_features
-        self.hidden_params = hidden_features + 1
+
+        self.stddiag = stddiag
+        assert self.stddiag==True, "The case std is not diag isn't implemented."
         
-        self.encoder = MNIST_Encoder(in_features, self.hidden_params)
-        self.decoder = MNIST_Decoder(hidden_features, in_features)
-
-
-
+        self.hidden_vars = hidden_vars
+        if stddiag:
+            self.stdsize = hidden_vars
+        else:
+            self.stdsize = int((hidden_vars*(hidden_vars+1))/2)
         
+        self.encoder = MNIST_Encoder(in_features = in_features,
+                                     out_features = self.stdsize + self.hidden_vars)
+        self.decoder = MNIST_Decoder(in_features = self.hidden_vars,
+                                     out_features = in_features)
+
+
+
+    def encode(self, x):
+        x = self.encoder(x)
+        return x
+
+    
+    def decode(self, x):
+        x = self.decoder(x)
+        return x
+
+    
+    
     def _sampling_from_standard_normal(self, seed=False):
         if not seed: torch.manual_seed(seed)
-        epsilon = torch.normal(mean=torch.zeros(self.hidden_features))
+        epsilon = torch.normal(mean=torch.zeros(self.hidden_vars))
         return epsilon
         
 
     def forward(self, x):
 
         '''
-        For now, this is just schematic.
-        All following sentences MUST be checked.
+        For now, only the case for stddiag=True is implemented.
         '''
 
         # Encode the input into the posterior's parameters
         params = self.encoder(x)
-        mu = params[:-1]
-        sigma = params[-1]
+        mu, Sigma = self._vec2mustd(params)
+        #print("mu=", mu)
+        #print("Sigma=", Sigma)
+        #print("The dimension of the mu:", mu.size())
+        #print("The dimension of the sigma:", Sigma.size())
 
         # Sampling from the standard normal distribution
         # and reparametrize.
         epsilon = self._sampling_from_standard_normal()
-        z = mu + sigma * epsilon
+        #print("The dimension of the epsilon:", epsilon.size())
+        #print("epsilon=", epsilon)
+        
+        if self.stddiag: z = mu + torch.sqrt(Sigma) * epsilon
+        else: z = mu + torch.mm(torch.sqrt(Sigma), epsilon)
+        #print("The dimension of the z:", z.size())
+        #print("z=", z)
 
         # Decode the hidden variables
         x_tilde = self.decoder(z)
-        return(x_tilde)
+        #print("The dimension of the x_tilde:", x_tilde.size())
+        
+        return(x_tilde, mu, Sigma)
 
 
+
+
+
+    def _vec2matrix(self, vec):
+
+        nbatch = vec.size()[0]
+        mat = torch.zeros((nbatch, self.hidden_vars, self.hidden_vars))
+
+        for n in range(nbatch):
+            for i in range(self.hidden_vars):
+                for j in range(self.hidden_vars):
+                    if i<=j:
+                        mat[n, i, j] = vec[n, i*self.hidden_vars - int(i*(i-1)/2) + (j-i)]
+                    else:
+                        mat[n, i, j] = mat[n, j, i]
+        
+        return mat
+
     
-    
+
+    def _vec2mustd(self, vec):
+        '''
+        Assume the output of the encoder is log(Sigma).
+        This method returns the mu and the Sigma.
+        '''
+        
+        mu = vec[:, 0:self.hidden_vars]
+
+        if self.stddiag:
+            sigma2 = torch.exp(vec[:, -self.stdsize:])
+            return mu, sigma2
+        
+        else:
+            Sigma = self._vec2matrix(vec[:, -self.stdsize:])
+            return mu, Sigma
+
+
+
+
+class loss_for_vae(nn.Module):
+
+    def __init__(self):
+        super(loss_for_vae, self).__init__()
+        
+    def forward(self, x, x_rec, mu, Sigma):
+
+        '''
+        For now, only the case for stddiag=True is implemented.
+        You will get the error if stddiag=False.
+        '''
+        
+        KLloss = -(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0
+        Reconstruction_loss = torch.abs(x_rec - x) ** 2.0
+        total_loss = KLloss + Reconstruction_loss
+        return total_loss
+
+
+
+        
+
+
+
 
 if __name__=='__main__':
 
 
-    vae = MNIST_VAE(288, 10)
-    x = vae._sampling_from_standard_normal()
-    plt.figure()
-    plt.hist(x, bins=100)
-    plt.show()
+    vae = MNIST_VAE(in_features=288, hidden_vars=3)
+    
+    x = torch.Tensor(np.random.randn(4,288))
+    z = vae.encode(x)
+
+    print("The dimension of the hidden variables:", z.size())
+
+    print("Forward calculation started")
+
+
+    x_tilde = vae.forward(x)
+    
+    print("Forward calculation finished")
 
 
 
