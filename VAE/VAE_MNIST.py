@@ -126,7 +126,7 @@ class MNIST_VAE(nn.Module):
 
         # Sampling from the standard normal distribution
         # and reparametrize.
-        epsilon = self._sampling_from_standard_normal()
+        epsilon = self._sampling_from_standard_normal().cuda()
         #print("The dimension of the epsilon:", epsilon.size())
         #print("epsilon=", epsilon)
         
@@ -194,9 +194,9 @@ class loss_for_vae(nn.Module):
         '''
         
         KLloss = -(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0
-        Reconstruction_loss = torch.abs(x_rec - x) ** 2.0
+        Reconstruction_loss = torch.mean((torch.abs(x_rec - x) ** 2.0) / 2.0, dim=-1)
         total_loss = KLloss + Reconstruction_loss
-        return total_loss
+        return torch.mean(total_loss)
 
 
 
@@ -206,7 +206,7 @@ class loss_for_vae(nn.Module):
 
 
 if __name__=='__main__':
-
+    '''
 
     vae = MNIST_VAE(in_features=288, hidden_vars=3)
     
@@ -221,10 +221,7 @@ if __name__=='__main__':
     x_tilde = vae.forward(x)
     
     print("Forward calculation finished")
-
-
-
-
+    
     '''
 
     transform = transforms.Compose([transforms.ToTensor(),
@@ -256,14 +253,16 @@ if __name__=='__main__':
 
 
 
-    ae = MNIST_AE(28*28, 15)
-    ae = ae.cuda()
+    vae = MNIST_VAE(28*28, 15)
+    vae = vae.cuda()
 
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(ae.parameters())
+    criterion = loss_for_vae()
+    optimizer = optim.Adam(vae.parameters())
 
 
-    for epoch in range(20):
+    for epoch in range(30):
+
+        running_loss = 0.0
         for i, data in enumerate(data_loader, 0):
 
             inputs, _ = data
@@ -271,18 +270,23 @@ if __name__=='__main__':
             inputs = inputs.view(-1, 28*28)
             
             optimizer.zero_grad()
-            outputs = ae(inputs)
-            loss = criterion(outputs, inputs)
+            outputs, mu, sigma = vae(inputs)
+            loss = criterion(inputs, outputs, mu, sigma)
+            running_loss += loss.data
+            
             loss.backward()
             optimizer.step()    # Does the update
 
+        print("[%2d] %.3f" % (epoch, running_loss))
 
 
     with torch.no_grad():
         for j in range(3):
             inputs, labels = imagenet_data[j]
             inputs = inputs.view(-1, 28*28).cuda()
-            outputs = ae(inputs)
+            outputs, mu, sigma = vae(inputs)
+            print(mu)
+            print(sigma)
         
             inputs = inputs.cpu().view(-1, 28, 28)
             outputs = outputs.cpu().view(-1, 28, 28)
@@ -296,4 +300,3 @@ if __name__=='__main__':
             plt.title('reproduced image: %d' % labels)
         
         plt.show()
-'''
