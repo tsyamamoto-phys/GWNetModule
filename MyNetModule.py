@@ -74,34 +74,50 @@ class DanielDeeperNet(nn.Module):
 
 
 
+
+def _cal_length(N, k, s=1, d=1):
+    return math.floor((N - d*(k-1) -1) / s + 1)
+
+
 class RingdownNet(nn.Module):
 
-    def __init__(self, length, out_features):
+    def __init__(self, length=512, out_features=2):
         super(RingdownNet, self).__init__()
         self.length = length
-        self.conv1 = nn.Conv1d(in_channels=1, out_channels=32, kernel_size=4)
-        #self.pool1 = nn.MaxPool1d(4, stride=4)
-        self.conv2 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=4)
-        #self.pool2 = nn.MaxPool1d(4, stride=4)
-        self.conv3 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=8)
-        #self.pool3 = nn.MaxPool1d(4, stride=4)
-        self.conv4 = nn.Conv1d(in_channels=128, out_channels=256, kernel_size=8)
-        #self.pool4 = nn.MaxPool1d(4, stride=4)
 
-        self.dense1 = nn.Linear(in_features=256*(length-20), out_features=128)
-        self.dense2 = nn.Linear(in_features=128, out_features=64)
-        self.dense3 = nn.Linear(in_features=64, out_features=out_features)
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=32, kernel_size=4)
+        self.L = _cal_length(self.length, 4)
+        #self.pool1 = nn.MaxPool1d(4, stride=4)
+        
+        self.conv2 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=4)
+        self.L = _cal_length(self.L, 4)
+
+        self.pool2 = nn.MaxPool1d(4, stride=4)
+        self.L = _cal_length(self.L, 4, s=4)
+
+        self.conv3 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=8)
+        self.L = _cal_length(self.L, 8)
+
+        #self.pool3 = nn.MaxPool1d(4, stride=4)
+
+        self.conv4 = nn.Conv1d(in_channels=128, out_channels=256, kernel_size=8)
+        self.L = _cal_length(self.L, 8)
+
+        self.pool4 = nn.MaxPool1d(4, stride=4)
+        self.L = _cal_length(self.L, 4, s=4)
+        
+        self.dense1 = nn.Linear(in_features=256*self.L, out_features=128)
+        self.dense2 = nn.Linear(in_features=128, out_features=out_features)
 
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+        x = F.relu(self.pool2(self.conv2(x)))
         x = F.relu(self.conv3(x))
-        x = F.relu(self.conv4(x))
-        x = x.view(-1, 512*(self.length-20))
+        x = F.relu(self.pool4(self.conv4(x)))
+        x = x.view(-1, 256*self.L)
         x = F.relu(self.dense1(x))
-        x = F.relu(self.dense2(x))
-        x = self.dense3(x)
+        x = self.dense2(x)
         return x
 
 

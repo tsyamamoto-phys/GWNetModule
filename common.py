@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import load_gwdata as load
 
 
 def mkdir(dir):
@@ -92,15 +93,20 @@ def _normalize(data):
 
 
 
-def noise_inject_ringdown(waveformset, pSNR, length=512):
+def noise_inject_ringdown(waveformset, pSNR, length=512, bandpass=False):
 
     N, L = waveformset.shape
     dataset = np.empty((N, length))
     for i in range(N):
-        koffset = np.random.randint(0,256)
+        #koffset = np.random.randint(0,64)
+        koffset = 128
         waveform = waveformset[i]
         waveform, kmax = _noise_inject(waveform, pSNR)
         waveform = _pickup_ringdown(waveform, kmax, koffset, length=length)
+
+        if bandpass:
+            waveform = load.bandpass(waveform, 50.0, 2047.0)
+
         waveform = _normalize(waveform)
         dataset[i, :] = waveform
 
