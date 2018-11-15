@@ -57,7 +57,7 @@ if __name__ == '__main__':
     c = 2.99792458 * 1e+10    #cgs
     
     
-    hp, hc = get_td_waveform(approximant = 'TaylorT2',
+    hp, hc = get_td_waveform(approximant = 'SEOBNRv4',
                              mass1 = m1,
                              mass2 = m2,
                              spin1z = a1,
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     h = np.array(hp) + 1.0j * np.array(hc)
     
     
-    t, hp_memory, h_mem = memory_waveform(approximant = 'TaylorT2',
+    t, hp_memory, h_mem = memory_waveform(approximant = 'SEOBNRv4',
                                           mass1 = m1,
                                           mass2 = m2,
                                           spin1z = a1,
@@ -97,37 +97,38 @@ if __name__ == '__main__':
     # Generate the aLIGO ZDHP PSD
 
     delta_f = 1.0 / duration
+    tlen = len(t)
     flen = len(hp)/2 + 1
 
-    
-    f = np.fft.fftfreq(len(h), 1.0/fs)
+    f = np.fft.fftfreq(len(h_mem), 1.0/fs)
     delta_f = f[1] - f[0]
-    hf = np.fft.fft(h) * delta_f
+    hf = np.fft.fft(h_mem) / (tlen / 2.0)
 
     hf = hf[f>0.0]
     f = f[f>0.0]
 
-    psd_decigo = DECIGO(f)
-
     psd_kagra = KAGRA(flen, delta_f, f[1])
     psd_kagra = np.interp(f, psd_kagra.sample_frequencies, psd_kagra)
     
-    print('SNR:', np.sqrt(inner_product(f, hf, psd_decigo, delta_f, [50.0, 2048.0])))
+    print('SNR:', np.sqrt(inner_product(f, hf, psd_kagra, delta_f, [50.0, 2048.0])))
 
     
 
-    normstrain = np.abs(hf) * (f**0.5)
-    
+    normstrain = np.abs(hf) / (f**0.5)
+
+
+
+    '''
     plt.figure()
     plt.loglog(f, normstrain, lw=2)
-    plt.loglog(f, np.sqrt(abs(psd_decigo)), 'k', lw=2, label='DECIGO')
-    plt.loglog(f, np.sqrt(abs(psd_kagra)), 'gray', lw=2, label='KAGRA')
-    plt.xlim([1e-3, 1e+2])
+    plt.loglog(f, np.sqrt(abs(psd_kagra)), 'k', lw=2, label='KAGRA')
+    plt.xlim([1e+0, 4096.0])
+    plt.ylim([1e-26, 1e-19])
     plt.legend()
     plt.grid()
     
     plt.show()
-
+    '''
     
     
     '''
