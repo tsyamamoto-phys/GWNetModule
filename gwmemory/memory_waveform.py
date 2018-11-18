@@ -72,7 +72,7 @@ def memory_waveform(return_memory=False, return_as_numpy=False, **kwargs):
 if __name__ == '__main__':
 
     fs = 4096
-    fmin = 10.0
+    fmin = 20.0
     m1 = 36.0
     m2 = 29.0
     a1 = 0.0
