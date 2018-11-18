@@ -4,16 +4,23 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.distributions.normal import Normal
 
 import math
 import numpy as np
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
+
+import os, sys
+sys.path.append(os.pardir)
+from common import mkdir
 
 
 
 class CVAE_GW(nn.Module):
 
-    def __init__(self, in_features, hidden_features, phys_features, stddiag=True, cudaflg=True):
+    def __init__(self, in_features, hidden_features, phys_features, L=1, stddiag=True, cudaflg=True):
         super(CVAE_GW, self).__init__()
         '''
         hidden_features: the number of the hidden variables
@@ -27,6 +34,7 @@ class CVAE_GW(nn.Module):
         self.stddiag = stddiag
         assert self.stddiag==True, "The case std is not diag isn't implemented."
 
+        self.L = L
         
         self.in_features = in_features
 
@@ -50,25 +58,25 @@ class CVAE_GW(nn.Module):
         self.conv1 = nn.Conv1d(in_channels=1, out_channels=64, kernel_size=16)
         self.c1out = _cal_length(self.in_features, 16)
 
-        self.pool1 = nn.MaxPool1d(4, stride=4, return_indices=True)
+        self.pool1 = nn.MaxPool1d(4, stride=4)
         self.p1out = _cal_length(self.c1out, 4, s=4)
 
         self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=16, dilation=2)
         self.c2out = _cal_length(self.p1out, 16, d=2)
         
-        self.pool2 = nn.MaxPool1d(4, stride=4, return_indices=True)
+        self.pool2 = nn.MaxPool1d(4, stride=4)
         self.p2out = _cal_length(self.c2out, 4, s=4)
         
         self.conv3 = nn.Conv1d(in_channels=128, out_channels=256, kernel_size=16, dilation=2)
         self.c3out = _cal_length(self.p2out, 16, d=2)
 
-        self.pool3 = nn.MaxPool1d(4, stride=4, return_indices=True)
+        self.pool3 = nn.MaxPool1d(4, stride=4)
         self.p3out = _cal_length(self.c3out, 4, s=4)
 
         self.conv4 = nn.Conv1d(in_channels=256, out_channels=512, kernel_size=32, dilation=2)
         self.c4out = _cal_length(self.p3out, 32, d=2)
         
-        self.pool4 = nn.MaxPool1d(4, stride=4, return_indices=True)
+        self.pool4 = nn.MaxPool1d(4, stride=4)
         self.p4out = _cal_length(self.c4out, 4, s=4)
 
         self.fc1 = nn.Linear(in_features=512*self.p4out, out_features=128)
@@ -76,23 +84,15 @@ class CVAE_GW(nn.Module):
 
 
         # define the layers of decoder
-        self.bc1 = nn.Linear(in_features=self.hidden_features, out_features=128)
-        self.bc2 = nn.Linear(in_features=128, out_features=512*self.p4out)
-
-        self.upool1 = nn.MaxUnpool1d(4, stride=4)
-        self.dconv1 = nn.ConvTranspose1d(in_channels=512, out_channels=256, kernel_size=32, dilation=2)
-        self.upool2 = nn.MaxUnpool1d(4,stride=4)
-        self.dconv2 = nn.ConvTranspose1d(in_channels=256, out_channels=128, kernel_size=16, dilation=2)
-        self.upool3 = nn.MaxUnpool1d(4, stride=4)
-        self.dconv3 = nn.ConvTranspose1d(in_channels=128, out_channels=64, kernel_size=16, dilation=2)
-        self.upool4 = nn.MaxUnpool1d(4, stride=4)
-        self.dconv4 = nn.ConvTranspose1d(in_channels=64, out_channels=1, kernel_size=16)
-
+        self.bc1 = nn.Linear(in_features=self.hidden_features, out_features=32)
+        self.bc2 = nn.Linear(in_features=32, out_features=self.phys_features)
 
 
         
+        
     def _sampling_from_standard_normal(self):
-        epsilon = torch.normal(mean=torch.zeros(self.hidden_features))
+        m = Normal(torch.zeros(self.hidden_features), torch.Tensor([1.0]))
+        epsilon = m.sample(torch.Size([self.L]))
         return epsilon
 
 
@@ -132,68 +132,33 @@ class CVAE_GW(nn.Module):
 
         
 
-    def encode(self, inputs, mode='encode'):
+    def encode(self, inputs):
         '''
         For now, only the case for stddiag=True is implemented.
         '''
         
-        assert (mode=='encode')or(mode=='cae'), "invalide mode; use 'encode' or 'cae'"
-        
-
         # Use the layers of encoder
-        indices = []
-        
-        x, idx = self.pool1(self.conv1(inputs))
-        x = F.relu(x)
-        indices.append(idx)
-
-        x, idx = self.pool2(self.conv2(x))
-        x = F.relu(x)
-        indices.append(idx)
-
-        x, idx = self.pool3(self.conv3(x))
-        x = F.relu(x)
-        indices.append(idx)
-
-        x, idx = self.pool4(self.conv4(x))
-        x = F.relu(x)
-        indices.append(idx)
-        
+        x = F.relu(self.pool1(self.conv1(inputs)))
+        x = F.relu(self.pool2(self.conv2(x)))
+        x = F.relu(self.pool3(self.conv3(x)))
+        x = F.relu(self.pool4(self.conv4(x)))
         x = x.view(-1, 512*self.p4out)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
 
         mu, sigma = self._vec2mustd(x)
-        
-        if mode=='encode':
-            return mu, sigma
-        elif mode=='cae':
-            return mu, sigma, indices
-        else:
-            return None
+
+        return mu, sigma
         
 
 
 
-    def decode(self, z, indices):
+    def decode(self, z):
 
         # Use the layers of decoder and the output size of conv layers.
 
-        N = z.size()[0]
-
         z = F.relu(self.bc1(z))
-        z = F.relu(self.bc2(z))
-
-        z = z.view(N, 512, self.p4out)
-
-        z = self.upool1(z, indices[-1], output_size=(N, 256, self.c4out))
-        z = F.relu(self.dconv1(z))
-        z = self.upool2(z, indices[-2], output_size=(N, 128, self.c3out))
-        z = F.relu(self.dconv2(z))
-        z = self.upool3(z, indices[-3], output_size=(N, 64, self.c2out))
-        z = F.relu(self.dconv3(z))
-        z = self.upool4(z, indices[-4], output_size=(N, 32, self.c1out))
-        z = self.dconv4(z)
+        z = self.bc2(z)
 
         return z
         
@@ -204,7 +169,7 @@ class CVAE_GW(nn.Module):
         # This is the entire VAE.
 
         # Encode the input into the posterior's parameters
-        mu, Sigma, indices = self.encode(inputs, mode='cae')
+        mu, Sigma = self.encode(inputs)
                 
         # Sampling from the standard normal distribution
         # and reparametrize.
@@ -214,9 +179,9 @@ class CVAE_GW(nn.Module):
         else: z = mu + torch.mm(torch.sqrt(Sigma), epsilon)
 
         # Decode the hidden variables
-        x_tilde = self.decode(z, indices)
+        y_pred = torch.mean(self.decode(z), dim=0, keepdim=True)
 
-        return x_tilde, mu, Sigma
+        return y_pred, mu, Sigma
         
         '''
         if mode=='vae':
@@ -226,6 +191,23 @@ class CVAE_GW(nn.Module):
             return phys_param
         '''
 
+
+    def inference(self, inputs, Nsample=1000):
+
+        outlist = []
+        for _ in range(Nsample):
+
+            y, mu, sigma = self.forward(inputs)
+            
+            if self.cudaflg:
+                y = y.cpu()
+                
+            outlist.append(y.detach().numpy())
+
+        return outlist
+
+
+
         
 
 class loss_for_vae(nn.Module):
@@ -234,7 +216,7 @@ class loss_for_vae(nn.Module):
         super(loss_for_vae, self).__init__()
         self.alpha = alpha
         
-    def forward(self, x, x_tilde, mu, Sigma):
+    def forward(self, y_true, y_pred, mu, Sigma):
 
         '''
         For now, only the case for stddiag=True is implemented.
@@ -242,7 +224,7 @@ class loss_for_vae(nn.Module):
         '''
         
         KLloss = -(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0
-        Reconstruction_loss = torch.mean((torch.abs(x_tilde - x) ** 2.0) / 2.0, dim=-1)
+        Reconstruction_loss = torch.mean((torch.abs(y_pred - y_true) / y_true), dim=-1)
         total_loss = self.alpha * KLloss + Reconstruction_loss
         return torch.mean(total_loss)
 
@@ -251,7 +233,7 @@ class loss_for_vae(nn.Module):
 if __name__ == '__main__':
 
 
-    filedir = '/home/tyamamoto/testset/'
+    filedir = '/home/tap/errorbar/testset/'
 
     trainwave = torch.Tensor(np.load(filedir+'dampedsinusoid_train.npy').reshape(-1, 1, 8192))
     trainlabel = torch.Tensor(np.genfromtxt(filedir+'dampedsinusoid_trainLabel.dat'))
@@ -259,57 +241,11 @@ if __name__ == '__main__':
     data_loader = torch.utils.data.DataLoader(traindata, batch_size=256, shuffle=True, num_workers=4)
 
     cvae = CVAE_GW(in_features=8192,
-                   hidden_features=2,
-                   phys_features=2)
+                   hidden_features=10,
+                   phys_features=2,
+                   L=5)
     cvae.cuda()
 
 
-    criterion = loss_for_vae()
-    optimizer = optim.Adam(cvae.parameters())
-
-    modeldir = '/home/tyamamoto/CVAEmodel/'
-
-
-    cvae.state_dict(torch.load(modeldir+'181024model_50.pt'))
-
-    '''
-    for epoch in range(50):
-
-        running_loss = 0.0
-        for i, data in enumerate(data_loader, 0):
-
-            inputs, _ = data
-            inputs = inputs.cuda()
-            
-            optimizer.zero_grad()
-            outputs, mu, Sigma = cvae(inputs)
-            loss = criterion(inputs, outputs, mu, Sigma)
-            running_loss += loss.data
-
-            loss.backward()
-            optimizer.step()    # Does the update
-
-        print("[%2d] %.5f" % (epoch+1, running_loss / (i+1)))
-
-        if epoch%10==9: torch.save(cvae.state_dict(), modeldir+'181024model_%d.pt'%(epoch+1))
-
-    '''
-        
-
-    with torch.no_grad():
-        for j in [0, 8140, 16270]:
-            
-            inputs, labels = traindata[j]
-            inputs = inputs.view(1, 1, 8192)
-            inputs = inputs.cuda()
-            outputs, mu, Sigma = cvae(inputs)
-
-            inputs = inputs.cpu()
-            outputs = outputs.cpu()
-
-
-            plt.figure()
-            plt.plot(inputs.detach().numpy()[0,0], label='original signal')
-            plt.plot(outputs.detach().numpy()[0,0], label='reproduced signal')
-        
-        plt.show()
+    y, loc, scale = cvae(trainwave[0].view(1,1,8192).cuda())
+    print(y.size())
