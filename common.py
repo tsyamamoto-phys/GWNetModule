@@ -2,6 +2,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from scipy import optimize
+from scipy.stats import multivariate_normal
 #import load_gwdata as load
 
 
@@ -181,6 +182,36 @@ def fitgaussian(data):
 
 
 if __name__=='__main__':
+
+
+    x, y = np.mgrid[-1:1:.01, -1:1:.01]
+    pos = np.empty(x.shape + (2,))
+    pos[:,:,0] = x
+    pos[:,:,1] = y
+    rv = multivariate_normal([0.5, -0.2], [[1.0, 0.3], [0.3, 0.5]])
+
+    plt.figure()
+    plt.contour(x, y, rv.pdf(pos))
+    plt.colorbar()
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    '''
+
     Xin, Yin = np.mgrid[0:201, 0:201]
     data = gaussian2d(3.0, 100, 100, 40, 50, 0.0)(Xin, Yin) + np.random.random(Xin.shape)
 
@@ -203,4 +234,4 @@ if __name__=='__main__':
             verticalalignment='bottom', transform=ax.transAxes)
     
     plt.savefig('figure.png')
-    
+    '''
