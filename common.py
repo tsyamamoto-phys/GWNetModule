@@ -2,7 +2,6 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from scipy import optimize
-from scipy.stats import multivariate_normal
 #import load_gwdata as load
 
 
@@ -117,27 +116,71 @@ def noise_inject_ringdown(waveformset, pSNR, length=512, bandpass=False):
 
 
 
-
 #------------------------------------------------------------
-# the function returning contour threshold 
+# Gaussian Fitting (2d)
 #------------------------------------------------------------
 
-def sigma(cov):
+def gaussian2d(height, x_mean, y_mean, cov_xx, cov_yy, cov_xy):
 
-    eig1, eig2 = eig(cov)
-    norm = 1.0 / (2*np.pi*np.sqrt(eig1*eig2))
-    s3 = 0.01 / norm
-    s5 = 1. / 1744278. / norm
+    detcov = cov_xx * cov_yy - cov_xy**2.0
+    gam_xx = cov_yy / detcov
+    gam_yy = cov_xx / detcov
+    gam_xy = -cov_xy / detcov
+    #norm = 1.0 / (2.0*np.pi*(abs(detcov)**0.5))
 
-    return [s3, s5]
+    return lambda x,y: height * np.exp( - (x-x_mean)**2.0*gam_xx/2.0 - (y-y_mean)**2.0*gam_yy/2.0 - 2.0*(x-x_mean)*(y-y_mean)*gam_xy)
+    
+'''
+def moments(data):
+    """Returns (height, x, y, width_x, width_y)
+    the gaussian parameters of a 2D distribution by calculating its
+    moments 
+    data has the shape (N, 2). N is the number of the data.
+    """
+    
+    total = data.sum()
+    data_norm = data / total
+    N = data.shape[0]
+    
+    mean = np.mean(data_norm, axis=0)
+    cov = np.cov(data_norm.T)
+    
+    height = data.max()
+    
+    print(height, mean[0], mean[1], cov[0,0], cov[1,1], cov[0,1])
+    return height, mean[0], mean[1], cov[0,0], cov[1,1], cov[0,1]
+'''
 
 
 
+def moments(data):
+    """Returns (height, x, y, width_x, width_y)
+    the gaussian parameters of a 2D distribution by calculating its
+    moments """
+    total = data.sum()
+    X, Y = np.indices(data.shape)
+    x = (X*data).sum()/total
+    y = (Y*data).sum()/total
+    col = data[:, int(y)]
+    width_x = np.sqrt(np.abs((np.arange(col.size)-y)**2*col).sum()/col.sum())
+    row = data[int(x), :]
+    width_y = np.sqrt(np.abs((np.arange(row.size)-x)**2*row).sum()/row.sum())
+    height = data.max()
+    width = 0.0
+    return height, x, y, width_x, width_y, width
+
+
+def fitgaussian(data):
+    """Returns (height, x, y, width_x, width_y)
+    the gaussian parameters of a 2D distribution found by a fit"""
+    params = moments(data)
+    errorfunction = lambda p: np.ravel(gaussian2d(*p)(*np.indices(data.shape)) - data)
+    p, success = optimize.leastsq(errorfunction, params)
+    return p
 
 
 
 if __name__=='__main__':
-
     Xin, Yin = np.mgrid[0:201, 0:201]
     data = gaussian2d(3.0, 100, 100, 40, 50, 0.0)(Xin, Yin) + np.random.random(Xin.shape)
 
