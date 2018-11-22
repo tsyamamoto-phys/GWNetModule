@@ -121,11 +121,13 @@ def sigma(cov):
 
     w, _ = np.linalg.eig(cov)
     norm = 1.0 / (2.0*np.pi*np.sqrt(w[0]*w[1]))
-    print(w)
+    s1 = 1 / 3.1514872 * norm
     s3 = 0.01 * norm
     s5 = 1.0 / 1744278 * norm
 
-    return [s3, s5]
+    return [float(s5), float(s3), float(s1)]
+
+
 
 
 
@@ -133,16 +135,17 @@ def sigma(cov):
 if __name__=='__main__':
 
 
-    cov = np.array([[1.0, 0.3], [0.3, 0.5]])
+    cov = np.array([[1.0, 0.0], [0.0, 1.0]])
     cont = sigma(cov)
-    
-    x, y = np.mgrid[-1:1:.01, -1:1:.01]
+    print(cont)
+
+    x, y = np.mgrid[-10:10:.1, -10:10:.1]
     pos = np.empty(x.shape + (2,))
     pos[:,:,0] = x
     pos[:,:,1] = y
-    rv = multivariate_normal([0.5, -0.2], [[1.0, 0.3], [0.3, 0.5]])
+    rv = multivariate_normal([0.0, 0.0], cov)
+
 
     plt.figure()
-    plt.contour(x, y, rv.pdf(pos))
-    plt.colorbar()
+    plt.contour(x, y, rv.pdf(pos), levels=cont, colors=['k', 'r', 'b'])
     plt.show()
