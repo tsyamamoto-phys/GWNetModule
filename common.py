@@ -1,5 +1,8 @@
 import numpy as np
 import os
+
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from scipy import optimize
 from scipy.stats import multivariate_normal
@@ -121,12 +124,20 @@ def sigma(cov):
 
     w, _ = np.linalg.eig(cov)
     norm = 1.0 / (2.0*np.pi*np.sqrt(w[0]*w[1]))
+
+    p50 = 0.5 * norm
+    p75 = 0.25 * norm
+    p90 = 0.01 * norm
+    return [float(p90), float(p75), float(p50)]
+
+
+    """
     s1 = 1 / 3.1514872 * norm
     s3 = 0.01 * norm
     s5 = 1.0 / 1744278 * norm
 
     return [float(s5), float(s3), float(s1)]
-
+    """
 
 
 
@@ -147,5 +158,7 @@ if __name__=='__main__':
 
 
     plt.figure()
-    plt.contour(x, y, rv.pdf(pos), levels=cont, colors=['k', 'r', 'b'])
-    plt.show()
+    plt.contour(x, y, rv.pdf(pos), levels=cont, colors=['k', 'r', 'm', 'b'])
+    plt.grid()
+    
+    plt.savefig('test.png')

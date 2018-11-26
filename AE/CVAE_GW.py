@@ -90,9 +90,9 @@ class CVAE_GW(nn.Module):
 
         
         
-    def _sampling_from_standard_normal(self):
+    def _sampling_from_standard_normal(self, Nbatch):
         m = Normal(torch.zeros(self.hidden_features), torch.Tensor([1.0]))
-        epsilon = m.sample(torch.Size([self.L]))
+        epsilon = m.sample(torch.Size([self.L, Nbatch]))
         return epsilon
 
 
@@ -169,17 +169,18 @@ class CVAE_GW(nn.Module):
         # This is the entire VAE.
 
         # Encode the input into the posterior's parameters
+        Nbatch = inputs.size()[0]
         mu, Sigma = self.encode(inputs)
                 
         # Sampling from the standard normal distribution
         # and reparametrize.
-        epsilon = self._sampling_from_standard_normal()
+        epsilon = self._sampling_from_standard_normal(Nbatch)
         if self.cudaflg: epsilon = epsilon.cuda()
-        if self.stddiag: z = mu + torch.sqrt(Sigma) * epsilon
+        if self.stddiag: z = mu + torch.sqrt(Sigma).view(-1, Nbatch, self.hidden_features) * epsilon
         else: z = mu + torch.mm(torch.sqrt(Sigma), epsilon)
 
         # Decode the hidden variables
-        y_pred = torch.mean(self.decode(z), dim=0, keepdim=True)
+        y_pred = torch.mean(self.decode(z), dim=0)
 
         return y_pred, mu, Sigma
         
@@ -247,5 +248,5 @@ if __name__ == '__main__':
     cvae.cuda()
 
 
-    y, loc, scale = cvae(trainwave[0].view(1,1,8192).cuda())
+    y, loc, scale = cvae(trainwave[0:3].view(-1,1,8192).cuda())
     print(y.size())
