@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from common import mkdir, noise_inject
 from AE.CVAE_GW import CVAE_GW, loss_for_vae
+import MyNetModule as mnm
 
 
 
@@ -62,42 +63,32 @@ if __name__ == '__main__':
     pSNR = 1.0
     for epoch in range(Nepoch):
 
+        #-----------------------------------------------------------
+        # train and validate the model
+        # START
+
+        
         trainsignal = torch.Tensor(noise_inject(trainwave, pSNR))
         traindata = torch.utils.data.TensorDataset(trainsignal, trainlabel)
         data_loader = torch.utils.data.DataLoader(traindata, batch_size=batch_size, shuffle=True, num_workers=8)
 
         valsignal = torch.Tensor(noise_inject(valwave, pSNR))
+
+        cvae, running_loss = mnm.train_model(cvae, criterion, optimizer, data_loader, modeldir, epoch = epoch, modelsaveepoch=100)
+
+        val_loss = mnm.validate_model(cvae, criterion, valsignal, vallabel)
+        print("[%2d] %.5f %.5f" % (epoch+1, running_loss, val_loss.data))
+
+        # END
+        #-----------------------------------------------------------
+
         
-        running_loss = 0.0
-        for i, data in enumerate(data_loader, 0):
 
-            inputs, labels = data
-            inputs = inputs.cuda()
-            labels = labels.cuda()
-            
-            optimizer.zero_grad()
-            outputs, mu, Sigma = cvae(inputs)
-            loss = criterion(labels, outputs, mu, Sigma)
-            running_loss += loss.data
-
-            loss.backward()
-            optimizer.step()    # Does the update
-
-
-        with torch.no_grad():
-            
-            inputs = valsignal.cuda()
-            labels = vallabel.cuda()
-            outputs, mu, Sigma = cvae(inputs)
-            loss = criterion(labels, outputs, mu, Sigma)
-            
-        print("[%2d] %.5f %.5f" % (epoch+1, running_loss / (i+1), loss.data))
-
-        if epoch%100==99:
-            torch.save(cvae.state_dict(), modeldir+'model_%d.pt'%(epoch+1))
-            torch.save(optimizer.state_dict(), modeldir+'optimizer_%d.pt'%(epoch+1))
-
-            
+        #-----------------------------------------------------------
+        # check the model for 1 event (every 100 epoch)
+        # START
+        
+        if epoch % 100 == 99:
             with torch.no_grad():
 
                 j = 4625
@@ -124,6 +115,9 @@ if __name__ == '__main__':
             fig.colorbar(Image, ax=ax)
             plt.savefig(figname)
 
+            
+        # END
+        #-----------------------------------------------------------
         
     '''
     with torch.no_grad():

@@ -150,11 +150,62 @@ class ErrorbarEstimateNet(nn.Module):
         x = F.relu(self.dense2(x))
         x = F.softmax(self.dense3(x), dim=1)
         return x
-        
-
 
 
     
+
+#-----------------------------------------------------------
+# module for training, validation and testing networks
+#-----------------------------------------------------------
+
+
+
+def trian_model(model, criterion, optimizer, data_loader, modeldir,
+                epoch=0, modelsaveepoch=None):
+
+    running_loss = 0.0
+    for i, data in enumerate(data_loader, 0):
+        
+        inputs, labels = data
+        if torch.cuda.is_available():
+            inputs = inputs.cuda()
+            labels = labels.cuda()
+            
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(labels, *outputs)
+        running_loss += loss.data
+    
+        loss.backward()
+        optimizer.step()    # Does the update
+
+        
+    if modelsaveepoch is not None:
+        if epoch % modelsaveepoch == (modelsaveepoch - 1):
+            torch.save(model.state_dict(), modeldir+'model_%d.pt'%(epoch+1))
+            torch.save(optimizer.state_dict(), modeldir+'optimizer_%d.pt'%(epoch+1))
+
+    return model, running_loss / (i+1)
+
+
+
+def validate_model(model, criterion, inputs, labels):
+
+    with torch.no_grad():
+        if torch.cuda.is_available():
+            inputs = inputs.cuda()
+            labels = labels.cuda()
+        outputs = model(inputs)
+        loss = criterion(labels, *outputs)
+        
+    return loss
+
+
+
+
+
+
+
 
 class MeanRelativeError(nn.Module):
     '''
@@ -243,15 +294,14 @@ if __name__ == '__main__':
     '''
     This main function is for checking the module.
     '''
-    net = ErrorbarEstimateNet(70)
-    net = net.cuda()
 
-    x = torch.Tensor(np.random.randn(1,1,8192))
-    x = x.cuda()
-    
-    y = net(x)
-    print(type(y))
-    y.cpu()
-    
-    print(y)
+
+    def func(x):
+        return x, x**2
+
+    def func2(x, y):
+        return x+y
+
+    z = func(2)
+    print(func2(*z))
 
