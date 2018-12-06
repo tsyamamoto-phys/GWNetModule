@@ -263,7 +263,7 @@ class loss_with_array(nn.Module):
 
             total_loss = self.alpha * KLloss + Reconstruction_loss
             
-            return torch.mean(total_loss)
+            return torch.mean(total_loss), torch.mean(KLloss), torch.mean(Reconstruction_loss)
     
 
 def cov(m, y):
