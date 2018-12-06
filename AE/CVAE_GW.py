@@ -180,9 +180,11 @@ class CVAE_GW(nn.Module):
         else: z = mu + torch.mm(torch.sqrt(Sigma), epsilon)
 
         # Decode the hidden variables
-        y_pred = torch.mean(self.decode(z), dim=0)
-
-        return y_pred, mu, Sigma
+        y_pred_array = self.decode(z)
+        return y_pred_array, mu, Sigma
+        
+        #y_pred = torch.mean(self.decode(z), dim=0)
+        #return y_pred, mu, Sigma
         
         '''
         if mode=='vae':
@@ -209,7 +211,6 @@ class CVAE_GW(nn.Module):
 
 
 
-        
 
 class loss_for_vae(nn.Module):
 
@@ -231,22 +232,70 @@ class loss_for_vae(nn.Module):
 
 
 
+class loss_with_gaussian(nn.Module):
+    def __init__(self, alpha=1.0):
+        super(loss_with_gaussian, self).__init__()
+        self.alpha = alpha
+
+    def forward(self, y_true, y_pred_array, mu, Sigma):
+
+        ymean = torch.mean(y_pred_array, dim=-1)
+        ycov = torch.var(y_pred_array, dim=-1)
+        print(ymean.size(), ycov.size())
+        KLloss = -(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0
+
+        x = 0.0
+        
+        return x
+    
+
+def cov_3(array):
+    L, N, D = array.size()
+    mean = torch.mean(array, dim=0, keepdim=True)
+    dev = array - mean
+    cov = torch.sqrt(cov)
+
+def cov(m, y=None):
+    if y is not None:
+        m = torch.cat((m, y), dim=0)
+    m_exp = torch.mean(m, dim=0)
+    x = m - m_exp[None,:]
+    cov = 1 / (x.size(0)-1) * (x.t()).mm(x)
+    return cov
+
+def cov_3d(M):
+    L, N, D = M.size()
+    COV = torch.zeros(N,D,D)
+    for n in range(N):
+        x = cov(M[:,n,:].view(L,D))
+        COV[n] = x
+
+    return COV
+
+
+
 if __name__ == '__main__':
 
-
-    filedir = '/home/tap/errorbar/testset/'
+    
+    #filedir = '/home/tap/errorbar/testset/'
+    filedir = '/home/tyamamoto/errornet/testset/'
 
     trainwave = torch.Tensor(np.load(filedir+'dampedsinusoid_train.npy').reshape(-1, 1, 8192))
     trainlabel = torch.Tensor(np.genfromtxt(filedir+'dampedsinusoid_trainLabel.dat'))
-    traindata = torch.utils.data.TensorDataset(trainwave, trainlabel)
-    data_loader = torch.utils.data.DataLoader(traindata, batch_size=256, shuffle=True, num_workers=4)
 
     cvae = CVAE_GW(in_features=8192,
                    hidden_features=10,
                    phys_features=2,
-                   L=5)
-    cvae.cuda()
+                   L=5,
+                   cudaflg=False)
 
 
-    y, loc, scale = cvae(trainwave[0:3].view(-1,1,8192).cuda())
+    y, loc, scale = cvae(trainwave[0:3].view(-1,1,8192))
     print(y.size())
+
+    print(y)
+    
+    ymean = torch.mean(y, dim=0)
+    ycov = cov_3d(y)
+    print(ymean)
+    print(ycov)
