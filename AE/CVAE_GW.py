@@ -243,7 +243,7 @@ class loss_with_array(nn.Module):
         """ y_pred_array has size (L, N, D) """
         N = y_pred_array.size(1)
         ymean = torch.mean(y_pred_array, dim=0)
-        ycov = cov_3d(y_pred_array)
+        ycov = cov_3d(y_pred_array, y_true)
         if self.alter:
             KLloss = torch.mean(-(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0)
             Rec_loss = 0.0
@@ -266,19 +266,23 @@ class loss_with_array(nn.Module):
             return torch.mean(total_loss)
     
 
-def cov(m, y=None):
-    if y is not None:
+def cov(m, y):
+    """if y is not None:
         m = torch.cat((m, y), dim=0)
     m_exp = torch.mean(m, dim=0)
-    x = m - m_exp[None,:]
+    x = m - m_exp[None,:]"""
+
+    x = m - y[None,:]
     cov = 1 / (x.size(0)-1) * (x.t()).mm(x)
     return cov
 
-def cov_3d(M, y=None):
+
+
+def cov_3d(M, y):
     L, N, D = M.size()
     COV = torch.zeros(N,D,D).cuda()
     for n in range(N):
-        x = cov(M[:,n,:].view(L,D), y=y)
+        x = cov(M[:,n,:].view(L,D), y=y[n].view(D))
         COV[n] = x
 
     return COV
@@ -288,6 +292,19 @@ def cov_3d(M, y=None):
 if __name__ == '__main__':
 
 
+    L = 10
+    N = 5
+    D = 2
+
+
+    m = torch.zeros(L, N, D)
+    y = torch.zeros(N, D)
+
+    print(cov_3d(m, y))
+
+
+
+    """
     #filedir = '/home/tap/errorbar/testset/'
     filedir = '/home/tyamamoto/errornet/testset/'
 
@@ -309,3 +326,4 @@ if __name__ == '__main__':
     loss = criterion(trainlabel[0:3], *output)
     print(loss.size())
 
+    """
