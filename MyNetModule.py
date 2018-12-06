@@ -160,10 +160,12 @@ class ErrorbarEstimateNet(nn.Module):
 
 
 
-def trian_model(model, criterion, optimizer, data_loader, modeldir,
+def train_model(model, criterion, optimizer, data_loader, modeldir,
                 epoch=0, modelsaveepoch=None):
 
     running_loss = 0.0
+    klloss = 0.0
+    recloss = 0.0
     for i, data in enumerate(data_loader, 0):
         
         inputs, labels = data
@@ -173,8 +175,10 @@ def trian_model(model, criterion, optimizer, data_loader, modeldir,
             
         optimizer.zero_grad()
         outputs = model(inputs)
-        loss = criterion(labels, *outputs)
+        loss, kl, rec = criterion(labels, *outputs)
         running_loss += loss.data
+        klloss += kl.data
+        recloss += rec.data
     
         loss.backward()
         optimizer.step()    # Does the update
@@ -185,7 +189,7 @@ def trian_model(model, criterion, optimizer, data_loader, modeldir,
             torch.save(model.state_dict(), modeldir+'model_%d.pt'%(epoch+1))
             torch.save(optimizer.state_dict(), modeldir+'optimizer_%d.pt'%(epoch+1))
 
-    return model, running_loss / (i+1)
+    return model, running_loss / (i+1), klloss/(i+1), recloss/(i+1)
 
 
 
@@ -196,7 +200,7 @@ def validate_model(model, criterion, inputs, labels):
             inputs = inputs.cuda()
             labels = labels.cuda()
         outputs = model(inputs)
-        loss = criterion(labels, *outputs)
+        loss, _kl, _rec = criterion(labels, *outputs)
         
     return loss
 

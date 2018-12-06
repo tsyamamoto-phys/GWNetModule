@@ -241,19 +241,29 @@ class loss_with_array(nn.Module):
     def forward(self, y_true, y_pred_array, mu, Sigma):
 
         """ y_pred_array has size (L, N, D) """
-        
+        N = y_pred_array.size(1)
         ymean = torch.mean(y_pred_array, dim=0)
         ycov = cov_3d(y_pred_array)
         if self.alter:
-            KLloss = -(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0
-            pass
+            KLloss = torch.mean(-(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0)
+            Rec_loss = 0.0
+            for n in range(N):
+                m = ymean[n] - y_true[n]
+                C = ycov[n]
+                Cinv = torch.inverse(C)
+                recloss = (torch.log(torch.abs(torch.det(C))) + torch.dot(torch.mv(Cinv,m), m))/2.0
+                Rec_loss += recloss.data
+            Rec_loss = Rec_loss / N
+            
+            return KLloss + Rec_loss, KLloss, Rec_loss
+
         else:
             KLloss = -(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0
             Reconstruction_loss = torch.sum((torch.abs(ymean - y_true) / y_true), dim=-1)
 
-        total_loss = self.alpha * KLloss + Reconstruction_loss
+            total_loss = self.alpha * KLloss + Reconstruction_loss
             
-        return torch.mean(total_loss)
+            return torch.mean(total_loss)
     
 
 def cov(m, y=None):
@@ -264,11 +274,11 @@ def cov(m, y=None):
     cov = 1 / (x.size(0)-1) * (x.t()).mm(x)
     return cov
 
-def cov_3d(M):
+def cov_3d(M, y=None):
     L, N, D = M.size()
-    COV = torch.zeros(N,D,D)
+    COV = torch.zeros(N,D,D).cuda()
     for n in range(N):
-        x = cov(M[:,n,:].view(L,D))
+        x = cov(M[:,n,:].view(L,D), y=y)
         COV[n] = x
 
     return COV
@@ -277,7 +287,7 @@ def cov_3d(M):
 
 if __name__ == '__main__':
 
-    
+
     #filedir = '/home/tap/errorbar/testset/'
     filedir = '/home/tyamamoto/errornet/testset/'
 
@@ -298,3 +308,4 @@ if __name__ == '__main__':
     criterion = loss_with_array()
     loss = criterion(trainlabel[0:3], *output)
     print(loss.size())
+
