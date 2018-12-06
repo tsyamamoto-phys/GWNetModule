@@ -226,34 +226,35 @@ class loss_for_vae(nn.Module):
         '''
         
         KLloss = -(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0
-        Reconstruction_loss = torch.mean((torch.abs(y_pred - y_true) / y_true), dim=-1)
+        Reconstruction_loss = torch.sum((torch.abs(y_pred - y_true) / y_true), dim=-1)
         total_loss = self.alpha * KLloss + Reconstruction_loss
         return torch.mean(total_loss)
 
 
 
-class loss_with_gaussian(nn.Module):
-    def __init__(self, alpha=1.0):
-        super(loss_with_gaussian, self).__init__()
+class loss_with_array(nn.Module):
+    def __init__(self, alpha=1.0, alter=False):
+        super(loss_with_array, self).__init__()
         self.alpha = alpha
+        self.alter = alter
 
     def forward(self, y_true, y_pred_array, mu, Sigma):
 
-        ymean = torch.mean(y_pred_array, dim=-1)
-        ycov = torch.var(y_pred_array, dim=-1)
-        print(ymean.size(), ycov.size())
-        KLloss = -(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0
-
-        x = 0.0
+        """ y_pred_array has size (L, N, D) """
         
-        return x
-    
+        ymean = torch.mean(y_pred_array, dim=0)
+        ycov = cov_3d(y_pred_array)
+        if self.alter:
+            KLloss = -(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0
+            pass
+        else:
+            KLloss = -(1.0 + torch.log(Sigma) - mu**2.0 - Sigma).sum(dim=-1) / 2.0
+            Reconstruction_loss = torch.sum((torch.abs(ymean - y_true) / y_true), dim=-1)
 
-def cov_3(array):
-    L, N, D = array.size()
-    mean = torch.mean(array, dim=0, keepdim=True)
-    dev = array - mean
-    cov = torch.sqrt(cov)
+        total_loss = self.alpha * KLloss + Reconstruction_loss
+            
+        return torch.mean(total_loss)
+    
 
 def cov(m, y=None):
     if y is not None:
@@ -290,12 +291,10 @@ if __name__ == '__main__':
                    cudaflg=False)
 
 
-    y, loc, scale = cvae(trainwave[0:3].view(-1,1,8192))
-    print(y.size())
+    output = cvae(trainwave[0:3].view(-1,1,8192))
+    print(output[0].size())
 
-    print(y)
-    
-    ymean = torch.mean(y, dim=0)
-    ycov = cov_3d(y)
-    print(ymean)
-    print(ycov)
+
+    criterion = loss_with_array()
+    loss = criterion(trainlabel[0:3], *output)
+    print(loss.size())
