@@ -79,8 +79,7 @@ class CVAE_GW(nn.Module):
         self.pool4 = nn.MaxPool1d(4, stride=4)
         self.p4out = _cal_length(self.c4out, 4, s=4)
 
-        self.fc1 = nn.Linear(in_features=512*self.p4out, out_features=128)
-        self.fc2 = nn.Linear(in_features=128, out_features=self.hidden_features+self.stdsize)
+        self.fc = nn.Linear(in_features=512*self.p4out, out_features=self.hidden_features+self.stdsize)
 
 
         # define the layers of decoder
@@ -143,8 +142,7 @@ class CVAE_GW(nn.Module):
         x = F.relu(self.pool3(self.conv3(x)))
         x = F.relu(self.pool4(self.conv4(x)))
         x = x.view(-1, 512*self.p4out)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
+        x = self.fc(x)
 
         mu, sigma = self._vec2mustd(x)
 
