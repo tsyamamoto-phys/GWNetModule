@@ -9,7 +9,7 @@ PI2 = PI*PI
 Msun = 1.9884 * 1e+30
 Mpc = 3e+24
 
-def inspiral(t, f, Mc, amp=1.0, phi0=0.0):
+def inspiral(t, f, Mc, amp=1.0, phi0=0.0, dist=1.0):
 
     
     df = (96* PI**(8.0/3.0) / 5) * f**(11.0/3.0) * (Mc*Msun)**(5.0/3.0) * (G/c**3.0)**(5.0/3.0)
@@ -46,14 +46,12 @@ def inspiral_memory(t, f, Mc, dist=1.0, phi0=0.0):
 
 
 
-time = np.arange(0.0, 1e+7, 1.0/3.0)
-h, df, amp = inspiral_memory(time, 1e-3, 1.0)
-print(df, amp)
 
-hf = np.fft.rfft(h)
-freq = np.fft.rfftfreq(len(h), 1.0/3.0)
+if __name__ == '__main__':
 
+    time = np.arange(0.0, 1.0, 1.0/4096)
+    hp, hc = inspiral(time, 10.0, 1.0)
 
-plt.figure()
-plt.loglog(freq, abs(hf))
-plt.show()
+    plt.figure()
+    plt.plot(time, hp)
+    plt.show()
