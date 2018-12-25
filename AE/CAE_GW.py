@@ -136,7 +136,8 @@ class CAE_GW(nn.Module):
         # This is the entire VAE.
         z = self.encode(inputs)
         outputs = self.decode(z)
-        return outputs
+        pred = z[:,0:2]
+        return outputs, pred
 
 
     def inference(self, inputs):
@@ -150,10 +151,11 @@ class CAE_GW(nn.Module):
 
 class loss_for_ae(nn.Module):
 
-    def __init__(self):
+    def __init__(self, alpha=1.0):
         super(loss_for_ae, self).__init__()
+        self.alpha = alpha
         
-    def forward(self, x, x_rec):
+    def forward(self, x, x_rec, pred, label):
 
         '''
         For now, only the case for stddiag=True is implemented.
@@ -161,54 +163,70 @@ class loss_for_ae(nn.Module):
         '''
         
         Reconstruction_loss = torch.mean((torch.abs(x_rec - x) ** 2.0) / 2.0, dim=-1)
-        total_loss = Reconstruction_loss
-        return torch.mean(total_loss)
+        parameter_loss = torch.mean(torch.abs(pred - label) / label, dim=-1)
+        total_loss = Reconstruction_loss + self.alpha * parameter_loss
+        return torch.mean(total_loss), torch.mean(Reconstruction_loss), torch.mean(parameter_loss)
 
 
 
 if __name__ == '__main__':
 
 
-    filedir = '/home/tap/errorbar/testset/'
+    #filedir = '/home/tap/errorbar/testset/'
+    filedir = '/home/tyamamoto/testset/'
 
     trainwave = np.load(filedir+'dampedsinusoid_train.npy')
-    #trainlabel = torch.Tensor(np.genfromtxt(filedir+'dampedsinusoid_trainLabel.dat'))
+    trainlabel = torch.Tensor(np.genfromtxt(filedir+'dampedsinusoid_trainLabel.dat'))
 
     cae = CAE_GW(8192, 32)
     cae.cuda()
 
 
-    criterion = nn.MSELoss()
+    criterion = loss_for_ae(alpha=1.0)
     optimizer = optim.Adam(cae.parameters())
 
 
 
-    for epoch in range(20):
+    for epoch in range(1):
 
 
         trainsignal = torch.Tensor(noise_inject(trainwave, pSNR=5.0))
-        traindata = torch.utils.data.TensorDataset(trainsignal, torch.Tensor(trainwave.reshape(-1,1,8192)))
-        data_loader = torch.utils.data.DataLoader(traindata, batch_size=256, shuffle=True, num_workers=4)
+        
+        traindata = torch.utils.data.TensorDataset(trainsignal,
+                                                   torch.Tensor(trainwave.reshape(-1,1,8192)),
+                                                   trainlabel)
+        
+        data_loader = torch.utils.data.DataLoader(traindata,
+                                                  batch_size=256,
+                                                  shuffle=True,
+                                                  num_workers=4)
 
         
         running_loss = 0.0
+        running_rec = 0.0
+        running_param = 0.0
+
+        
         for i, data in enumerate(data_loader, 0):
 
-            signals, waves = data
+            signals, waves, labels = data
             signals = signals.cuda()
             waves = waves.cuda()
+            labels = labels.cuda()
             
             optimizer.zero_grad()
-            outputs = cae(signals)
-            loss = criterion(outputs, waves)
+            outputs, preds = cae(signals)
+            loss, rec, param = criterion(outputs, waves, preds, labels)
             
             running_loss += loss.data
+            running_rec += rec.data
+            running_param += param.data
 
             loss.backward()
             optimizer.step()    # Does the update
 
             
-        print("[%2d] %.3f" % (epoch, running_loss / (i+1)))
+        print("[%2d] %.5f (= %.5f + %.5f)" % (epoch, running_loss / (i+1), running_rec / (i+1), running_param / (i+1)))
 
 
         
