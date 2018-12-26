@@ -140,11 +140,11 @@ def noise_inject_ringdown(waveformset, pSNR, length=512, bandpass=False, mode='s
 def many_noise_inject(waveform, pSNR, N=1000, mode='stdfix'):
 
     L = waveform.shape[-1]
-    signalset = np.empty((N, L))
+    dataset = np.empty((N, L))
     for i in range(N):
         data, _ = _noise_inject(waveform, pSNR, mode)
         data = _normalize(data)
-        signalset[i,:] = data
+        dataset[i,:] = data
 
     return dataset.reshape(N, 1, L)
 
