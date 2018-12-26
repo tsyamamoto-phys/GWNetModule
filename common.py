@@ -17,7 +17,14 @@ def mkdir(dir):
         
 
 
-def noise_inject(array, pSNR, shift_max=None):
+
+def noise_inject(array, pSNR, shift_max=None, mode='stdfix'):
+    '''
+    mode: ampfix or stdfix
+    '''
+
+    assert mode is 'stdfix' or 'ampfix', 'invalid mode: use "stdfix" or "ampfix"'
+    
     N, L = array.shape
     if shift_max is None:
         waveformset = array
@@ -26,24 +33,18 @@ def noise_inject(array, pSNR, shift_max=None):
     dataset = np.empty(waveformset.shape)
     for i in range(N):
         waveform = waveformset[i]
-        peak = abs(waveform).max()
-        
-        if type(pSNR) is list:
-            pSNR_sampled = np.random.uniform(pSNR[0], pSNR[1])
-            amp = pSNR_sampled / peak
-        else:
-            amp = pSNR / peak
+        if mode=='stdfix':
+            data, _ = _noise_inject_stdfix(waveform, pSNR)
+        elif mode=='ampfix':
+            data, _ = _noise_inject_ampfix(waveform, pSNR)
 
-        noise = np.random.normal(0.0, 1.0, size=L)
-        inject_signal = amp*waveform
-        data = inject_signal + noise
 
-        mu = data.mean()
-        std = np.sqrt(data.var())
-        data = (data - mu)/std
+        data = _normalize(data)
         dataset[i,:] = data
 
     return dataset.reshape(N, 1, L)
+
+
 
 
 
@@ -63,7 +64,8 @@ def shift(array, shift_max):
 
 
 
-def _noise_inject(waveform, pSNR):
+
+def _noise_inject_stdfix(waveform, pSNR):
 
     L = waveform.shape
     kmax = abs(waveform).argmax()
@@ -80,6 +82,30 @@ def _noise_inject(waveform, pSNR):
     data = inject_signal + noise
 
     return data, kmax
+
+
+
+
+def _noise_inject_ampfix(waveform, pSNR):
+
+    L = waveform.shape
+    kmax = abs(waveform).argmax()
+    peak = abs(waveform).max()
+    
+    if type(pSNR) is list:
+        pSNR_sampled = np.random.uniform(pSNR[0], pSNR[1])
+        sigma = (peak / pSNR_sampled )
+    else:
+        sigma = (peak / pSNR)
+        
+    noise = np.random.normal(0.0, sigma, size=L)
+    data = waveform + noise
+
+    return data, kmax
+
+
+
+
 
 
 def _pickup_ringdown(waveform, kmax, koffset, length=512):
@@ -117,6 +143,28 @@ def noise_inject_ringdown(waveformset, pSNR, length=512, bandpass=False):
         dataset[i, :] = waveform
 
     return dataset.reshape(N,1,length)
+
+
+
+
+
+def many_noise_inject(waveform, pSNR, N=1000):
+
+    L = waveform.shape[-1]
+    signalset = np.empty((N, L))
+    for i in range(N):
+        pass
+
+
+
+
+
+
+
+
+
+
+
 
 
 
