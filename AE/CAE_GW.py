@@ -162,7 +162,8 @@ class loss_for_ae(nn.Module):
         You will get the error if stddiag=False.
         '''
         
-        Reconstruction_loss = torch.mean((torch.abs(x_rec - x) ** 2.0) / 2.0, dim=-1)
+        #Reconstruction_loss = torch.mean((torch.abs(x_rec - x) ** 2.0) / 2.0, dim=-1)
+        Reconstruction_loss = torch.mean(torch.abs(x_rec - x), dim=-1)
         parameter_loss = torch.mean(torch.abs(pred - label) / label, dim=-1)
         total_loss = Reconstruction_loss + self.alpha * parameter_loss
         return torch.mean(total_loss), torch.mean(Reconstruction_loss), torch.mean(parameter_loss)
