@@ -37,7 +37,7 @@ def noise_inject(array, pSNR, shift_max=None, mode='stdfix'):
         data = _normalize(data)
         dataset[i,:] = data
 
-    return dataset.reshape(N, 1, L)
+    return dataset.reshape(N, 1, L), waveformset.reshape(N, 1, L)
 
 
 
