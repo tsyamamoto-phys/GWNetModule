@@ -140,10 +140,31 @@ class CAE_GW(nn.Module):
         return outputs, pred
 
 
-    def inference(self, inputs):
 
-        z = self.encode(inputs)
-        return z[:,0], z[:,1]
+    def inference_for_single_event(self, inputs, Nsample=1000):
+        """
+        inputs has shape (1, 1, Length) because noise_inject will be carried out before this method
+        """
+        pass
+
+
+
+    
+
+    def inference(self, inputs, Nsample=1000):
+        """
+        inputs has shape (Nbatch, Length), and type torch.Tensor
+        return has shape (Nsample, Nbatch, Length)
+        """
+
+        Nb, _, L = inputs.size()
+        output = torch.zeros((Nsample, Nb, 2))
+        if torch.cuda.is_available():
+            output = output.cuda()
+        for n in range(Nsample):
+            z = self.encode(inputs)
+            output[n, :, :] = z[:,0:2]
+        return output
 
     
 
