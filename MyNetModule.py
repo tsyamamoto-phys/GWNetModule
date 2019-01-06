@@ -85,18 +85,18 @@ class RingdownNet(nn.Module):
         super(RingdownNet, self).__init__()
         self.length = length
 
-        self.conv1 = nn.Conv1d(in_channels=1, out_channels=32, kernel_size=16)
-        self.L = _cal_length(self.length, 16)
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=32, kernel_size=8)
+        self.L = _cal_length(self.length, 8)
         #self.pool1 = nn.MaxPool1d(4, stride=4)
         
-        self.conv2 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=16)
-        self.L = _cal_length(self.L, 16)
+        self.conv2 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=8)
+        self.L = _cal_length(self.L, 8)
 
         #self.pool2 = nn.MaxPool1d(4, stride=4)
         #self.L = _cal_length(self.L, 4, s=4)
 
-        self.conv3 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=16)
-        self.L = _cal_length(self.L, 16)
+        self.conv3 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=8)
+        self.L = _cal_length(self.L, 8)
 
         #self.pool3 = nn.MaxPool1d(4, stride=4)
 
@@ -106,6 +106,10 @@ class RingdownNet(nn.Module):
         #self.pool4 = nn.MaxPool1d(4, stride=4)
         #self.L = _cal_length(self.L, 4, s=4)
         
+        self.conv5 = nn.Conv1d(in_channels=256, out_channels=256, kernel_size=16)
+        self.L = _cal_length(self.L, 16)
+
+
         self.dense1 = nn.Linear(in_features=256*self.L, out_features=128)
         self.dense2 = nn.Linear(in_features=128, out_features=out_features)
 
@@ -117,6 +121,7 @@ class RingdownNet(nn.Module):
         x = F.relu(self.conv3(x))
         #x = F.relu(self.pool4(self.conv4(x)))
         x = F.relu(self.conv4(x))
+        x = F.relu(self.conv5(x))
         x = x.view(-1, 256*self.L)
         x = F.relu(self.dense1(x))
         x = self.dense2(x)
