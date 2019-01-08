@@ -126,7 +126,7 @@ def noise_inject_ringdown(waveformset, pSNR, length=512, bandpass=False, mode='s
         waveform = _pickup_ringdown(waveform, kmax, koffset, length=length)
 
         if bandpass:
-            waveform = load.bandpass(waveform, 20.0, 2047.0)
+            waveform = load.bandpass(waveform, 100.0, 1024.0)
 
         waveform = _normalize(waveform)
         dataset[i, :] = waveform
