@@ -6,7 +6,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from scipy import optimize
 from scipy.stats import multivariate_normal
-#import load_gwdata as load
+import load_gwdata as load
 
 
 def mkdir(dir):

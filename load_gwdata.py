@@ -33,10 +33,10 @@ def predictpsd_whiten(strain, dt, fs=4096):
 
 
 def bandpass(strain, fmin, fmax, fs=4096):
-    # strain.shape = (# of data, length of data, channel)
+    # strain.shape = (# of data, length of data)
     nyq = 0.5*fs
     bb, ab = butter(6, [fmin/nyq, fmax/nyq], btype='band')
-    strain_bp = filtfilt(bb, ab, strain, axis=1)
+    strain_bp = filtfilt(bb, ab, strain)
     return strain_bp
 
 
