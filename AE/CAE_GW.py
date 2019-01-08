@@ -166,7 +166,174 @@ class CAE_GW(nn.Module):
             output[n, :, :] = z[:,0:2]
         return output
 
+
+
+
+
+
+
+
+class CAE_GW_190104(nn.Module):
+
+    def __init__(self, in_features, hidden_features):
+        super(CAE_GW_190104, self).__init__()
+                
+
+        self.in_features = in_features
+        self.hidden_features = hidden_features
+
+        
+        # define the layers of encoder
+        # In conv layers, you shouldn't use the stride != 1.
+        # If stride != 1, it causes the anbiguity of the output size in deconv layers.
+        # Use the stride!=1 only for pooling layers.
+
+        def _cal_length(N, k, s=1, d=1):
+            return math.floor((N - d*(k-1) -1) / s + 1)
+
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=64, kernel_size=16)
+        self.c1out = _cal_length(self.in_features, 16)
+
+        self.pool1 = nn.MaxPool1d(4, stride=4, return_indices=True)
+        self.p1out = _cal_length(self.c1out, 4, s=4)
+
+        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=16, dilation=2)
+        self.c2out = _cal_length(self.p1out, 16, d=2)
+        
+        self.pool2 = nn.MaxPool1d(4, stride=4, return_indices=True)
+        self.p2out = _cal_length(self.c2out, 4, s=4)
+        
+        self.conv3 = nn.Conv1d(in_channels=128, out_channels=256, kernel_size=16, dilation=2)
+        self.c3out = _cal_length(self.p2out, 16, d=2)
+
+        self.pool3 = nn.MaxPool1d(4, stride=4, return_indices=True)
+        self.p3out = _cal_length(self.c3out, 4, s=4)
+
+        self.conv4 = nn.Conv1d(in_channels=256, out_channels=512, kernel_size=32, dilation=2)
+        self.c4out = _cal_length(self.p3out, 32, d=2)
+        
+        self.pool4 = nn.MaxPool1d(4, stride=4, return_indices=True)
+        self.p4out = _cal_length(self.c4out, 4, s=4)
+
+
+
+        # estimation layers
+        self.fc1 = nn.Linear(in_features=512*self.p4out, out_features=128)
+        self.fc2 = nn.Linear(in_features=128, out_features=2)
+
+        
+
+        # define the layers of decoder
+        self.upool1 = nn.MaxUnpool1d(4, stride=4)
+        self.dconv1 = nn.ConvTranspose1d(in_channels=512, out_channels=256, kernel_size=32, dilation=2)
+
+        self.upool2 = nn.MaxUnpool1d(4,stride=4)
+        self.dconv2 = nn.ConvTranspose1d(in_channels=256, out_channels=128, kernel_size=16, dilation=2)
+
+        self.upool3 = nn.MaxUnpool1d(4, stride=4)
+        self.dconv3 = nn.ConvTranspose1d(in_channels=128, out_channels=64, kernel_size=16, dilation=2)
+
+        self.upool4 = nn.MaxUnpool1d(4, stride=4)
+        self.dconv4 = nn.ConvTranspose1d(in_channels=64, out_channels=1, kernel_size=16)
+
+
+
+    def encode(self, inputs):
+
+        # Use the layers of encoder
+        self.indices = []
+        
+        x, idx = self.pool1(self.conv1(inputs))
+        x = F.relu(x)
+        self.indices.append(idx)
+
+        x, idx = self.pool2(self.conv2(x))
+        x = F.relu(x)
+        self.indices.append(idx)
+
+        x, idx = self.pool3(self.conv3(x))
+        x = F.relu(x)
+        self.indices.append(idx)
+
+        x, idx = self.pool4(self.conv4(x))
+        x = F.relu(x)
+        self.indices.append(idx)
+        
+        x = x.view(-1, 512*self.p4out)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+
+        return x
+
+        
+
+
+
+    def decode(self, z):
+
+        # Use the layers of decoder and the output size of conv layers.
+
+        N = z.size()[0]
+        
+        z = self.upool1(z, self.indices[-1], output_size=[N, 256, self.c4out])
+        z = F.relu(self.dconv1(z))
+        z = self.upool2(z, self.indices[-2], output_size=[N, 128, self.c3out])
+        z = F.relu(self.dconv2(z))
+        z = self.upool3(z, self.indices[-3], output_size=[N, 64, self.c2out])
+        z = F.relu(self.dconv3(z))
+        z = self.upool4(z, self.indices[-4], output_size=[N, 32, self.c1out])
+        z = self.dconv4(z)
+
+        return z
+
+
+    def inference(self, inputs):
+
+        z = inputs.view(-1, 512*self.p4out)
+        z = F.relu(self.fc1(z))
+        z = self.fc2(z)
+
+        return z
+
     
+
+    
+    def forward(self, inputs):
+
+        # This is the entire VAE.
+        z = self.encode(inputs)
+        outputs = self.decode(z)
+        pred = z[:,0:2]
+        return outputs, pred
+
+
+
+    def inference_for_single_event(self, inputs, Nsample=1000):
+        """
+        inputs has shape (1, 1, Length) because noise_inject will be carried out before this method
+        """
+        pass
+
+
+
+    
+
+    def inference(self, inputs, Nsample=1000):
+        """
+        inputs has shape (Nbatch, Length), and type torch.Tensor
+        return has shape (Nsample, Nbatch, Length)
+        """
+
+        Nb, _, L = inputs.size()
+        output = torch.zeros((Nsample, Nb, 2))
+        if torch.cuda.is_available():
+            output = output.cuda()
+        for n in range(Nsample):
+            z = self.encode(inputs)
+            output[n, :, :] = z[:,0:2]
+        return output
+
+
 
 
 
