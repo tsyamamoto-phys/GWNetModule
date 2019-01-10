@@ -259,10 +259,6 @@ class CAE_GW_190104(nn.Module):
         x = F.relu(x)
         self.indices.append(idx)
         
-        x = x.view(-1, 512*self.p4out)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-
         return x
 
         
@@ -287,7 +283,9 @@ class CAE_GW_190104(nn.Module):
         return z
 
 
-    def inference(self, inputs):
+
+    
+    def inference_layers(self, inputs):
 
         z = inputs.view(-1, 512*self.p4out)
         z = F.relu(self.fc1(z))
@@ -303,36 +301,25 @@ class CAE_GW_190104(nn.Module):
         # This is the entire VAE.
         z = self.encode(inputs)
         outputs = self.decode(z)
-        pred = z[:,0:2]
+        pred = self.inference_layers(z)
         return outputs, pred
 
 
 
-    def inference_for_single_event(self, inputs, Nsample=1000):
-        """
-        inputs has shape (1, 1, Length) because noise_inject will be carried out before this method
-        """
-        pass
+    def denoise(self, inputs):
 
+        z = self.encode(inputs)
+        outputs = self.decode(z)
+        return outputs
 
 
     
 
-    def inference(self, inputs, Nsample=1000):
-        """
-        inputs has shape (Nbatch, Length), and type torch.Tensor
-        return has shape (Nsample, Nbatch, Length)
-        """
+    def inference(self, inputs):
 
-        Nb, _, L = inputs.size()
-        output = torch.zeros((Nsample, Nb, 2))
-        if torch.cuda.is_available():
-            output = output.cuda()
-        for n in range(Nsample):
-            z = self.encode(inputs)
-            output[n, :, :] = z[:,0:2]
-        return output
-
+        z = self.encode(inputs)
+        pred = self.inference_layers(z)
+        return pred
 
 
 
