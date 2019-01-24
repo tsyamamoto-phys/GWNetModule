@@ -36,7 +36,7 @@ class DanielSimplerNet(nn.Module):
     
 
     
-    
+
     
 class DanielDeeperNet(nn.Module):
     '''
@@ -129,34 +129,39 @@ class RingdownNet(nn.Module):
 
 
 
-class ErrorbarEstimateNet(nn.Module):
+class ErrorEstimateNet(nn.Module):
 
-    def __init__(self, out_features):
-        super(ErrorbarEstimateNet, self).__init__()
+    def __init__(self):
+        super(ErrorEstimateNet, self).__init__()
         self.conv1 = nn.Conv1d(in_channels=1, out_channels=64, kernel_size=16)
-        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=16)
+        self.pool1 = nn.MaxPool1d(4, stride=4)
+        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=16, dilation=2)
         self.pool2 = nn.MaxPool1d(4, stride=4)
         self.conv3 = nn.Conv1d(in_channels=128, out_channels=256, kernel_size=16, dilation=2)
-        self.conv4 = nn.Conv1d(in_channels=256, out_channels=512, kernel_size=16, dilation=2)
+        self.pool3 = nn.MaxPool1d(4, stride=4)
+        self.conv4 = nn.Conv1d(in_channels=256, out_channels=512, kernel_size=32, dilation=2)
         self.pool4 = nn.MaxPool1d(4, stride=4)
-        self.conv5 = nn.Conv1d(in_channels=512, out_channels=1024, kernel_size=32, dilation=2)
 
-        self.dense1 = nn.Linear(in_features=1024*433, out_features=512)
-        self.dense2 = nn.Linear(in_features=512, out_features=128)
-        self.dense3 = nn.Linear(in_features=128, out_features=out_features)
+        self.dense1 = nn.Linear(in_features=512*14, out_features=128)
+        self.dense2 = nn.Linear(in_features=128, out_features=64)
+        self.dense3 = nn.Linear(in_features=64, out_features=5)
+
 
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
+        x = F.relu(self.pool1(self.conv1(x)))
         x = F.relu(self.pool2(self.conv2(x)))
-        x = F.relu(self.conv3(x))
+        x = F.relu(self.pool3(self.conv3(x)))
         x = F.relu(self.pool4(self.conv4(x)))
-        x = F.relu(self.conv5(x))
-        x = x.view(-1, 1024*433)
+        x = x.view(-1, 512*14)
         x = F.relu(self.dense1(x))
         x = F.relu(self.dense2(x))
-        x = F.softmax(self.dense3(x), dim=1)
-        return x
+        x = self.dense3(x)
+
+        preds = x[:, 0:2]
+        Sigma = x[:, 2:5]
+
+        return preds, Sigma
 
 
     
@@ -234,7 +239,58 @@ class MeanRelativeError(nn.Module):
 
         return mre
     
+
     
+
+class cdf_error(nn.Module):
+
+    # based on chi-square distribution w\ d.o.f = 2
+    
+    def __init__(self, alpha):
+        super(cdf_error, self).__init__()
+        self.alpha = alpha
+
+
+    def _sigma2lambda(self, sigma):
+        """
+        sigma should be given in size(Nb, l*(l+1)/2).
+        For l=2,
+        sigma[:,0] = sigma_11,
+        sigma[:,1] = sigma_12,
+        sigma[:,2] = sigma_22.
+        """
+        det = sigma[:,1]*sigma[:,1] - sigma[:,0]*sigma[:,2]
+        Lambda = torch.zeros_like(sigma)
+        Lambda[:,0] = sigma[:,2] / det
+        Lambda[:,1] = -sigma[:,1] / det
+        Lambda[:,2] = sigma[:,0] / det
+        return Lambda
+        
+
+    def _normalize_square_sum(self, inputs, Lambda):
+        f0 = inputs[:,0] * inputs[:,0]
+        f1 = inputs[:,1] * inputs[:,1]
+        a = f0 * (Lambda[:,0] + Lambda[:,1]) + f1 * (Lambda[:,1] + Lambda[:,2])
+        return a
+    
+    
+    def _cdf_error(self, inputs, sigma):
+        Lambda = self._sigma2lambda(sigma)
+        y = self._normalize_square_sum(inputs, Lambda)
+        y_sort, _ = torch.sort(y)
+        chi2_cdf = (lambda x: 1-torch.exp(-x/2.0))
+        cdf_t = chi2_cdf(y_sort)
+
+        Nb = inputs.size()[0]
+        cdf_e = torch.arange(0.0, 1.0, 1.0/Nb)
+        error = torch.sum((cdf_t - cdf_e)**2.0) / 2.0
+        return error
+
+    
+    def forward(self, inputs, sigma, labels):
+        mre = torch.mean(torch.sum((inputs - labels)**2.0, dim=-1) / 2.0)
+        return mre + self.alpha * self._cdf_error(inputs, sigma)
+        
     
     
     
