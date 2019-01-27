@@ -159,9 +159,8 @@ class ErrorEstimateNet(nn.Module):
         x = self.dense3(x)
 
         preds = x[:, 0:2]
-        Sigma = x[:, 2:5]
-
-        return preds, Sigma
+        sigma = x[:, 2:5]
+        return preds, sigma
 
 
     
@@ -254,24 +253,32 @@ class cdf_error(nn.Module):
 
     def _sigma2lambda(self, sigma):
         """
-        sigma should be given in size(Nb, l*(l+1)/2).
+        sigma is the half of Sigma(covariance matrix),
+        and should be given in size(Nb, l*(l+1)/2).
         For l=2,
         sigma[:,0] = sigma_11,
         sigma[:,1] = sigma_12,
         sigma[:,2] = sigma_22.
         """
-        det = sigma[:,1]*sigma[:,1] - sigma[:,0]*sigma[:,2]
+
+        Sigma = torch.zeros_like(sigma)
         Lambda = torch.zeros_like(sigma)
-        Lambda[:,0] = sigma[:,2] / det
-        Lambda[:,1] = -sigma[:,1] / det
-        Lambda[:,2] = sigma[:,0] / det
+        Sigma[:,0] = sigma[:,0]**2.0 + sigma[:,1]**2.0
+        Sigma[:,1] = sigma[:,1]*(sigma[:,0] + sigma[:,2])
+        Sigma[:,2] = sigma[:,1]**2.0 + sigma[:,2]**2.0
+        det = Sigma[:,1]*Sigma[:,1] - Sigma[:,0]*Sigma[:,2]
+        Lambda = torch.zeros_like(Sigma)
+        Lambda[:,0] = Sigma[:,2] / det
+        Lambda[:,1] = -Sigma[:,1] / det
+        Lambda[:,2] = Sigma[:,0] / det
         return Lambda
         
 
     def _normalize_square_sum(self, inputs, Lambda):
-        f0 = inputs[:,0] * inputs[:,0]
-        f1 = inputs[:,1] * inputs[:,1]
-        a = f0 * (Lambda[:,0] + Lambda[:,1]) + f1 * (Lambda[:,1] + Lambda[:,2])
+        f0f0 = inputs[:,0] * inputs[:,0]
+        f0f1 = inputs[:,0] * inputs[:,1]
+        f1f1 = inputs[:,1] * inputs[:,1]
+        a = f0f0 * Lambda[:,0] + 2 * f0f1 * Lambda[:,1] + f1f1 * Lambda[:,2]
         return a
     
     
@@ -301,7 +308,9 @@ class cdf_error(nn.Module):
         else:
             pass
 
-        return prediction_error + self.alpha * self._cdf_error(inputs, sigma)
+        cdf_error = self._cdf_error(inputs, sigma)
+
+        return prediction_error + self.alpha * cdf_error, prediction_error, cdf_error 
         
     
     
