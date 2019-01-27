@@ -245,7 +245,7 @@ class cdf_error(nn.Module):
 
     # based on chi-square distribution w\ d.o.f = 2
     
-    def __init__(self, alpha=1.0, prederr='MSE'):
+    def __init__(self, alpha=0.0, prederr='MSE'):
         super(cdf_error, self).__init__()
         self.alpha = alpha
         self.chi2_cdf = (lambda x: 1-torch.exp(-x/2.0))
@@ -254,7 +254,7 @@ class cdf_error(nn.Module):
     def _sigma2lambda(self, sigma):
         """
         sigma is the half of Sigma(covariance matrix),
-        and should be given in size(Nb, l*(l+1)/2).
+        and should be given in size(Nb, l(l+1)/2).
         For l=2,
         sigma[:,0] = sigma_11,
         sigma[:,1] = sigma_12,
@@ -263,52 +263,54 @@ class cdf_error(nn.Module):
 
         Sigma = torch.zeros_like(sigma)
         Lambda = torch.zeros_like(sigma)
+
         Sigma[:,0] = sigma[:,0]**2.0 + sigma[:,1]**2.0
         Sigma[:,1] = sigma[:,1]*(sigma[:,0] + sigma[:,2])
         Sigma[:,2] = sigma[:,1]**2.0 + sigma[:,2]**2.0
         det = Sigma[:,1]*Sigma[:,1] - Sigma[:,0]*Sigma[:,2]
-        Lambda = torch.zeros_like(Sigma)
+        
         Lambda[:,0] = Sigma[:,2] / det
         Lambda[:,1] = -Sigma[:,1] / det
         Lambda[:,2] = Sigma[:,0] / det
         return Lambda
-        
 
-    def _normalize_square_sum(self, inputs, Lambda):
-        f0f0 = inputs[:,0] * inputs[:,0]
-        f0f1 = inputs[:,0] * inputs[:,1]
-        f1f1 = inputs[:,1] * inputs[:,1]
+
+    def _normalize_square_sum(self, df, Lambda):
+        
+        f0f0 = df[:,0] * df[:,0]
+        f0f1 = df[:,0] * df[:,1]
+        f1f1 = df[:,1] * df[:,1]
         a = f0f0 * Lambda[:,0] + 2 * f0f1 * Lambda[:,1] + f1f1 * Lambda[:,2]
         return a
+
     
-    
-    def _cdf_error(self, inputs, sigma):
+    def _cdf_error(self, df, sigma):
         Lambda = self._sigma2lambda(sigma)
-        y = self._normalize_square_sum(inputs, Lambda)
+        y = self._normalize_square_sum(df, Lambda)
         y_sort, _ = torch.sort(y)
         cdf_t = self.chi2_cdf(y_sort)
 
-        Nb = inputs.size()[0]
+        Nb = df.size()[0]
         cdf_e = torch.arange(0.0, 1.0, 1.0/Nb, out=torch.FloatTensor())
         if torch.cuda.is_available(): cdf_e = cdf_e.cuda()
         error = torch.sum((cdf_t - cdf_e)**2.0) / 2.0
         return error
 
     
-    def forward(self, inputs, sigma, labels):
+    def forward(self, preds, sigma, labels):
         if self.prederr=='MSE':
-            prediction_error = torch.mean(torch.sum((inputs - labels)**2.0, dim=-1) / 2.0)
+            prediction_error = torch.mean(torch.sum((preds - labels)**2.0, dim=-1) / 2.0)
 
         elif self.prederr=='MRE':
-            prediction_error = torch.mean(torch.sum(torch.abs(inputs - labels) / labels, dim=-1))
+            prediction_error = torch.mean(torch.sum(torch.abs(preds - labels) / labels, dim=-1))
        
         elif self.prederr=='L1':
-            prediction_error = torch.mean(torch.sum(torch.abs(inputs - labels), dim=-1))
+            prediction_error = torch.mean(torch.sum(torch.abs(preds - labels), dim=-1))
        
         else:
             pass
 
-        cdf_error = self._cdf_error(inputs, sigma)
+        cdf_error = self._cdf_error(preds - labels, sigma)
 
         return prediction_error + self.alpha * cdf_error, prediction_error, cdf_error 
         
