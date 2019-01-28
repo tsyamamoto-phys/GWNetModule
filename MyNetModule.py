@@ -144,7 +144,7 @@ class ErrorEstimateNet(nn.Module):
 
         self.dense1 = nn.Linear(in_features=512*14, out_features=128)
         self.dense2 = nn.Linear(in_features=128, out_features=64)
-        self.dense3 = nn.Linear(in_features=64, out_features=4)
+        self.dense3 = nn.Linear(in_features=64, out_features=5)
 
 
 
@@ -159,7 +159,11 @@ class ErrorEstimateNet(nn.Module):
         x = self.dense3(x)
 
         preds = x[:, 0:2]
-        Lambda = x[:, 2:4]
+        y = x[:, 2:5]
+        Lambda = torch.zeros_like(y)
+        Lambda[:,0] = y[:,0]**2.0 + y[:,1]**2.0
+        Lambda[:,1] = y[:,1]*(y[:,0] + y[:,2])
+        Lambda[:,2] = y[:,1]**2.0 + y[:,2]**2.0
         return preds, Lambda
 
 
@@ -282,10 +286,10 @@ class cdf_error(nn.Module):
         f1f1 = df[:,1] * df[:,1]
         
         # diagonal case
-        a = f0f0*Lambda[:,0] + f1f1*Lambda[:,1]
+        #a = f0f0*Lambda[:,0] + f1f1*Lambda[:,1]
 
         # non diagonal case
-        #a = f0f0 * Lambda[:,0] + 2 * f0f1 * Lambda[:,1] + f1f1 * Lambda[:,2]
+        a = f0f0 * Lambda[:,0] + 2 * f0f1 * Lambda[:,1] + f1f1 * Lambda[:,2]
         return a
     
 
