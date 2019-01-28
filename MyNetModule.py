@@ -144,7 +144,7 @@ class ErrorEstimateNet(nn.Module):
 
         self.dense1 = nn.Linear(in_features=512*14, out_features=128)
         self.dense2 = nn.Linear(in_features=128, out_features=64)
-        self.dense3 = nn.Linear(in_features=64, out_features=5)
+        self.dense3 = nn.Linear(in_features=64, out_features=4)
 
 
 
@@ -159,8 +159,8 @@ class ErrorEstimateNet(nn.Module):
         x = self.dense3(x)
 
         preds = x[:, 0:2]
-        sigma = x[:, 2:5]
-        return preds, sigma
+        Lambda = x[:, 2:4]
+        return preds, Lambda
 
 
     
@@ -280,12 +280,18 @@ class cdf_error(nn.Module):
         f0f0 = df[:,0] * df[:,0]
         f0f1 = df[:,0] * df[:,1]
         f1f1 = df[:,1] * df[:,1]
-        a = f0f0 * Lambda[:,0] + 2 * f0f1 * Lambda[:,1] + f1f1 * Lambda[:,2]
-        return a
+        
+        # diagonal case
+        a = f0f0*Lambda[:,0] + f1f1*Lambda[:,1]
 
+        # non diagonal case
+        #a = f0f0 * Lambda[:,0] + 2 * f0f1 * Lambda[:,1] + f1f1 * Lambda[:,2]
+        return a
     
-    def _cdf_error(self, df, sigma):
-        Lambda = self._sigma2lambda(sigma)
+
+
+    def _cdf_error(self, df, Lambda):
+        #Lambda = self._sigma2lambda(sigma)
         y = self._normalize_square_sum(df, Lambda)
         y_sort, _ = torch.sort(y)
         cdf_t = self.chi2_cdf(y_sort)
@@ -297,7 +303,7 @@ class cdf_error(nn.Module):
         return error
 
     
-    def forward(self, preds, sigma, labels):
+    def forward(self, preds, Lambda, labels):
         if self.prederr=='MSE':
             prediction_error = torch.mean(torch.sum((preds - labels)**2.0, dim=-1) / 2.0)
 
@@ -310,7 +316,7 @@ class cdf_error(nn.Module):
         else:
             pass
 
-        cdf_error = self._cdf_error(preds - labels, sigma)
+        cdf_error = self._cdf_error(preds - labels, Lambda)
 
         return prediction_error + self.alpha * cdf_error, prediction_error, cdf_error 
         
