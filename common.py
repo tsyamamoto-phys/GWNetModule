@@ -1,9 +1,7 @@
 import numpy as np
 import os
 
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from scipy import optimize
 from scipy.stats import multivariate_normal
 import load_gwdata as load

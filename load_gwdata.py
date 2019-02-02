@@ -7,7 +7,7 @@ import matplotlib.mlab as mlab
 from scipy.interpolate import interp1d
 import os 
 import glob
-from tqdm import tqdm_notebook as tqdm
+
 
 def whiten(strain, interp_psd, dt):
     Nt = len(strain)
@@ -77,7 +77,7 @@ def load_traingwdata(datadir, datanum=None, mydataset=None, mylabels=None, WHITE
     # loading data and whitening(optional)
     if WHITEN:
         print('loading data and whitening')
-        for i in tqdm(range(all_num)):
+        for i in range(all_num):
             mock_file = datadir + 'mockdata_%05d.dat'%i
             hp, hc = np.loadtxt(mock_file)[1:3]
             hp_whiten = predictpsd_whiten(hp, dt=1.0/4096)
@@ -86,7 +86,7 @@ def load_traingwdata(datadir, datanum=None, mydataset=None, mylabels=None, WHITE
             mydataset.append(h.transpose())
     else:
         print('loading data')
-        for i in tqdm(range(all_num)):
+        for i in range(all_num):
             mock_file = datadir + 'mockdata_%05d.dat'%i
             h = np.loadtxt(mock_file)[1:3]
             mydataset.append(h.transpose())
@@ -108,7 +108,7 @@ def load_traingwdata(datadir, datanum=None, mydataset=None, mylabels=None, WHITE
         mydataset_cut = []
         length = CUT[0]
         koffset = CUT[1]
-        for i in tqdm(range(all_num)):
+        for i in range(all_num):
             hoge = np.loadtxt(filelist[i])[3]
             kcoa = np.argmax(hoge)
             kstart = kcoa + koffset# + np.random.randint(-16,16)
@@ -194,7 +194,7 @@ def load_testgwdata(snr, mydataset=None, mylabels=None, WHITEN=False, BANDPASS=N
     if WHITEN:
         print('whitening')
         testdata_wh = []
-        for i in tqdm(range(10)):
+        for i in range(10):
             hp = test_data[i,:,0]
             hc = test_data[i,:,1]
             hp_whiten = predictpsd_whiten(hp, dt=1.0/4096)
