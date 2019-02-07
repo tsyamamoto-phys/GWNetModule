@@ -316,6 +316,9 @@ class cdf_error(nn.Module):
        
         elif self.prederr=='L1':
             prediction_error = torch.mean(torch.sum(torch.abs(preds - labels), dim=-1))
+
+        elif self.prederr=='maharanobis':
+            prediction_error = torch.mean(self._normalize_square_sum(preds-labels, Lambda))
        
         else:
             pass
