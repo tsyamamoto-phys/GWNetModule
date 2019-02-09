@@ -4,10 +4,28 @@ from scipy.signal import tukey, spectrogram
 from scipy.constants import G, c
 from scipy.special import gamma, fresnel
 
+import pycbc.noise
+import pycbc.psd
+
 PI = np.pi
 PI2 = PI*PI
 Msun = 1.9884 * 1e+30
 Mpc = 3e+22
+
+# function to whiten data
+def whiten(strain, interp_psd, dt):
+    Nt = len(strain)
+    freqs = np.fft.rfftfreq(Nt, dt)
+    freqs1 = np.linspace(0,2048.,Nt/2+1)
+
+    # whitening: transform to freq domain, divide by asd, then transform back, 
+    # taking care to get normalization right.
+    hf = np.fft.rfft(strain)
+    norm = 1./np.sqrt(1./(dt*2))
+    white_hf = hf / np.sqrt(interp_psd(freqs)) * norm
+    white_ht = np.fft.irfft(white_hf, n=Nt)
+    return white_ht
+
 
 def inspiral(t, f0, Mc, phi0=0.0, dist=1.0):
 
@@ -61,11 +79,23 @@ if __name__ == '__main__':
     f0 = 50.0
     fs = 4096
     t = np.arange(0.0, 500.0, 1.0/fs)
-    hp, hc, amp, phi, df = inspiral(t, f0, 1.0)
+    hp, hc, amp, phi, df = inspiral(t, f0, 1.0, dist=400.)
 
-    freq, time, spec = spectrogram(hp, fs=4096, nperseg=10*4096)
+
+    flow = 10.0
+    delta_f = 1.0 / 16
+    flen = int(2048 / delta_f) + 1
+    psd = pycbc.psd.aLIGOZeroDetHighPower(flen, delta_f, flow)
+
+    delta_t = 1.0 / 4096
+    tsamples = int(500 / delta_t)
+    ts = pycbc.noise.noise_from_psd(tsamples, delta_t, psd, seed=127)
+    s = hp + np.array(ts)
+
+    freq, time, spec = spectrogram(s, fs=4096, nperseg=10*4096)
 
     plt.figure()
+    plt.plot(t, s)
     plt.plot(t, hp)
     plt.xlabel('time[s]')
     plt.ylabel('h(t)')
