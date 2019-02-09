@@ -11,8 +11,8 @@ import pycbc.noise
 import pycbc.psd
 
 
-import sys
-sys.path.append('GWNetModule')
+import sys, os
+sys.path.append(os.pardir)
 from common import noise_inject
 
 
@@ -157,22 +157,28 @@ if __name__=='__main__':
     #h_inj, _ = noise_inject(h.reshape(1, -1), pSNR=1.0, mode='ampfix')
     
     #freq, time, spec = signal.spectrogram(s, fs=4096, nperseg=4096)
-    freq, time, spec = signal.stft(h, fs=4096, nperseg=4096)    
+    #freq, time, spec = signal.stft(h, fs=4096, nperseg=4096)
+    cwtmatr = signal.cwt(h, signal.ricker, widths=np.arange(1, 50)*40960)
 
-    spec = spec[freq>250.0]
-    freq = freq[freq>250.0]
-    print(spec.shape)
+    #spec = spec[freq>250.0]
+    #freq = freq[freq>250.0]
+    #print(spec.shape)
 
-    quasi_phase = abs(np.real(spec)-np.imag(spec))
-    
     plt.figure()
-    plt.pcolormesh(time, freq, image_normalize(quasi_phase), cmap='gray')
-    #plt.plot(t[::4096*10], f[::4096*10], 'o', markersize=1.0)
+    plt.imshow(cwtmatr, extent=[-1, 1, 1, 51],
+               cmap='PRGn', aspect='auto',
+               vmax=abs(cwtmatr).max(), vmin=-abs(cwtmatr).max())
+               
+    plt.colorbar()
+
+
+    '''
+    plt.figure()
+    plt.plot(t[::4096*10], f[::4096*10], 'o', markersize=1.0)
     plt.colorbar()
     plt.xlabel('time[s]')
     plt.ylabel('frequency[Hz]')
 
-    '''
     plt.figure()
     plt.pcolormesh(time, freq, image_normalize(abs(contrast01(spec))), cmap='gray')
     plt.colorbar()
