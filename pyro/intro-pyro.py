@@ -24,18 +24,21 @@ train_loader = torch.utils.data.DataLoader(
 test_loader = torch.utils.data.DataLoader(datasets.MNIST("/tmp/mnist", train=False, transform=transforms.Compose([transforms.ToTensor(),])))
 
 class BNN(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, hidden_size, output_size):
         super(BNN, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.conv = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=4)
+        self.fc1 = nn.Linear(25*25*8, hidden_size)
         self.out = nn.Linear(hidden_size, output_size)
         
     def forward(self, x):
-        output = self.fc1(x)
+        output = self.conv(x)
+        output = self.fc1(output.view(-1,25*25*8))
         output = F.relu(output)
         output = self.out(output)
         return output
 
-net = BNN(28*28, 1024, 10)
+net = BNN(1024, 10)
+net.cuda()
 
 def model(x_data, y_data):
     # define prior destributions
@@ -104,7 +107,9 @@ loss = 0
 for j in range(n_iterations):
     loss = 0
     for batch_id, data in enumerate(train_loader):
-        loss += svi.step(data[0].view(-1,28*28), data[1])
+        data[0] = data[0].cuda()
+        data[1] = data[1].cuda()
+        loss += svi.step(data[0].view(-1,1,28,28), data[1])
 
     normalizer_train = len(train_loader.dataset)
     total_epoch_loss_train = loss / normalizer_train
@@ -112,25 +117,29 @@ for j in range(n_iterations):
     print("Epoch ", j, " Loss ", total_epoch_loss_train)
 
 
+net.cpu()
+
 n_samples = 10
 
 def predict(x):
     sampled_models = [guide(None, None) for _ in range(n_samples)]
     yhats = [model(x).data for model in sampled_models]
     mean = torch.mean(torch.stack(yhats), 0)
-    return np.argmax(mean.numpy(), axis=1)
+    return np.argmax(mean.cpu().numpy(), axis=1)
 
 print('Prediction when network is forced to predict')
-
+"""
 correct = 0
 total = 0
 for j, data in enumerate(test_loader):
     images, labels = data
-    predicted = predict(images.view(-1,28*28))
+    images = images.cuda()
+    labels = labels.cuda()
+    predicted = predict(images.view(-1,1,28,28))
     total += labels.size(0)
-    correct += (predicted == labels.numpy()).sum().item()
+    correct += (predicted == labels.cpu().numpy()).sum().item()
 print("accuracy: %d %%" % (100 * correct / total))
-
+"""
 def predict_prob(x):
     sampled_models = [guide(None, None) for _ in range(n_samples)]
     yhats = [model(x).data for model in sampled_models]
@@ -142,13 +151,15 @@ def normalize(x):
 
 def plot(x, yhats):
     fig, (axL, axR) = plt.subplots(ncols=2, figsize=(8, 4))
-    axL.bar(x=[i for i in range(10)], height= F.softmax(torch.Tensor(normalize(yhats.numpy()))[0]))
+    axL.bar(x=[i for i in range(10)], height= F.softmax(torch.Tensor(normalize(yhats.cpu().numpy()))[0]))
     axL.set_xticks([i for i in range(10)], [i for i in range(10)])
-    axR.imshow(x.numpy()[0])
+    axR.imshow(x.cpu().numpy()[0])
     plt.show()
 
 x, y = test_loader.dataset[0]
-yhats = predict_prob(x.view(-1, 28*28))
-print("ground truth: ", y.item())
-print("predicted: ", yhats.numpy())
+x = x.cuda()
+y = y.cuda()
+yhats = predict_prob(x.view(-1,1,28,28))
+print("ground truth: ", y.cpu().item())
+print("predicted: ", yhats.cpu().numpy())
 plot(x, yhats)
