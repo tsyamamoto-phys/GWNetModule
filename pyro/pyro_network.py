@@ -45,7 +45,19 @@ class BNN(nn.Module):
                             scale=torch.ones_like(self.fc1.weight))
         fc1b_prior = Normal(loc=torch.zeros_like(self.fc1.bias),
                             scale=torch.ones_like(self.fc1.bias))
-        fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
-                            scale=torch.ones_like(self.fc1.weight))
-        fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
-                            scale=torch.ones_like(self.fc1.weight))
+        fc2w_prior = Normal(loc=torch.zeros_like(self.fc2.weight),
+                            scale=torch.ones_like(self.fc2.weight))
+        fc2w_prior = Normal(loc=torch.zeros_like(self.fc2.bias),
+                            scale=torch.ones_like(self.fc2.bias))
+
+        priors = {'fc1.weight': fc1w_prior,
+                  'fc1.bias': fc1b_prior,
+                  'fc2.weight': fc2w_prior,
+                  'fc2.bias': fc2b_prior}
+
+       # lift module parameters to random variables sampled from the priors
+       lifted_module = pyro.random_module("module", self, 
+
+
+
+

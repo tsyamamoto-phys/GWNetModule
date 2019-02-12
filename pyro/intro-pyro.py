@@ -16,52 +16,67 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
 
-train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST("/tmp/mnist", train=True, download=True,
-                       transform=transforms.Compose([transforms.ToTensor(),])),
-        batch_size=128, shuffle=True)
 
-test_loader = torch.utils.data.DataLoader(datasets.MNIST("/tmp/mnist", train=False, transform=transforms.Compose([transforms.ToTensor(),])))
 
 class BNN(nn.Module):
     def __init__(self, hidden_size, output_size):
         super(BNN, self).__init__()
-        self.conv = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=4)
-        self.fc1 = nn.Linear(25*25*8, hidden_size)
-        self.out = nn.Linear(hidden_size, output_size)
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=16)
+        self.pool1 = nn.MaxPooling1d(4, stride=4)
+        self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=8, dilation=4)
+        self.pool2 = nn.MaxPooling1d(4, stride=4)
+        self.conv3= nn.Conv1d(in_channels=32, out_channels=64, kernel_size=8, dilation=4)
+        self.pool3 = nn.MaxPooling1d(4, stride=4)
+        self.fc1 = nn.Linear(64*119, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, output_size)
         
     def forward(self, x):
-        output = self.conv(x)
-        output = self.fc1(output.view(-1,25*25*8))
-        output = F.relu(output)
-        output = self.out(output)
-        return output
+        x = F.relu(self.pool1(self.conv1(x)))
+        x = F.relu(self.pool2(self.conv2(x)))
+        x = F.relu(self.pool3(self.conv3(x)))
+        x = x.view(-1, 64*119)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+        fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
+                            scale=torch.ones_like(self.fc1.weight))
+        fc1b_prior = Normal(loc=torch.zeros_like(self.fc1.bias),
+                            scale=torch.ones_like(self.fc1.bias))
+        fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
+                            scale=torch.ones_like(self.fc1.weight))
+        fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
+                            scale=torch.ones_like(self.fc1.weight))
+
 
 net = BNN(1024, 10)
 net.cuda()
 
 def model(x_data, y_data):
     # define prior destributions
-    fc1w_prior = Normal(loc=torch.zeros_like(net.fc1.weight),
-                                      scale=torch.ones_like(net.fc1.weight))
+
+    fc1w_prior = Normal(loc=torch.zeros_like(net.fc1.weights),
+                        scale=torch.ones_like(net.fc1.weights))
     fc1b_prior = Normal(loc=torch.zeros_like(net.fc1.bias),
-                                      scale=torch.ones_like(net.fc1.bias))
-    outw_prior = Normal(loc=torch.zeros_like(net.out.weight),
-                                       scale=torch.ones_like(net.out.weight))
-    outb_prior = Normal(loc=torch.zeros_like(net.out.bias),
-                                       scale=torch.ones_like(net.out.bias))
-    
-    priors = {
-        'fc1.weight': fc1w_prior,
-        'fc1.bias': fc1b_prior, 
-        'out.weight': outw_prior,
-        'out.bias': outb_prior}
+                        scale=torch.ones_like(net.fc1.bias))
+    fc2w_prior = Normal(loc=torch.zeros_like(net.fc2.weights),
+                        scale=torch.ones_like(net.fc2.weights))
+    fc2b_prior = Normal(loc=torch.zeros_like(net.fc2.bias),
+                        scale=torch.ones_like(net.fc2.bias))
+
+    priors = {'fc.1weight': fc1w_prior,
+              'fc1.bias': fc1b_prior, 
+              'out.weight': outw_prior,
+              'out.bias': outb_prior}
+
     
     lifted_module = pyro.random_module("module", net, priors)
     lifted_reg_model = lifted_module()
     
-    lhat = F.log_softmax(lifted_reg_model(x_data))
+    yhat = lifted_reg_model(x_data)
     pyro.sample("obs", Categorical(logits=lhat), obs=y_data)
+
+
 
 def guide(x_data, y_data):
     fc1w_mu = torch.randn_like(net.fc1.weight)
