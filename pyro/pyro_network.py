@@ -21,18 +21,31 @@ sns.set()
 class BNN(nn.Module):
     def __init__(self, hidden_size, output_size):
         super(BNN, self).__init__()
-        self.conv = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=4)
-        self.fc1 = nn.Linear(25*25*8, hidden_size)
-        self.out = nn.Linear(hidden_size, output_size)
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=16)
+        self.pool1 = nn.MaxPooling1d(4, stride=4)
+        self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=8, dilation=4)
+        self.pool2 = nn.MaxPooling1d(4, stride=4)
+        self.conv3= nn.Conv1d(in_channels=32, out_channels=64, kernel_size=8, dilation=4)
+        self.pool3 = nn.MaxPooling1d(4, stride=4)
+        self.fc1 = nn.Linear(64*119, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, output_size)
         
     def forward(self, x):
-        output = self.conv(x)
-        output = self.fc1(output.view(-1,25*25*8))
-        output = F.relu(output)
-        output = self.out(output)
-        return output
+        x = F.relu(self.pool1(self.conv1(x)))
+        x = F.relu(self.pool2(self.conv2(x)))
+        x = F.relu(self.pool3(self.conv3(x)))
+        x = x.view(-1, 64*119)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
 
     def model(self, x_data, y_data):
         # define prior distributions
         fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
-                            
+                            scale=torch.ones_like(self.fc1.weight))
+        fc1b_prior = Normal(loc=torch.zeros_like(self.fc1.bias),
+                            scale=torch.ones_like(self.fc1.bias))
+        fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
+                            scale=torch.ones_like(self.fc1.weight))
+        fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
+                            scale=torch.ones_like(self.fc1.weight))
