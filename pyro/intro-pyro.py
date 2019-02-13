@@ -120,8 +120,6 @@ def guide(x_data, y_data):
 optim = Adam({"lr": 0.01})
 svi = SVI(model, guide, optim, loss=Trace_ELBO())
 
-n_iterations = 5
-loss = 0
 
 # dataset create
 datadir = args.datadir
@@ -131,7 +129,7 @@ trainlabel = torch.Tensor(np.genfromtxt(datadir+'dampedsinusoid_trainLabel.dat')
 
 
 
-for j in range(n_iterations):
+for j in range(args.num-epochs):
     loss = 0
 
     trainsignal = torch.Tensor(noise_inject(trainwave, pSNR=5.0))
@@ -140,23 +138,24 @@ for j in range(n_iterations):
                                                torch.Tensor(trainwave.reshape(-1,1,8192)),
                                                trainlabel)
     
-    data_loader = torch.utils.data.DataLoader(traindata,
+    train_loader = torch.utils.data.DataLoader(traindata,
                                               batch_size=256,
                                               shuffle=True,
                                               num_workers=4)
 
 
     for batch_id, data in enumerate(train_loader):
-        data[0] = data[0].cuda()
-        data[1] = data[1].cuda()
-        loss += svi.step(data[0].view(-1,1,8192), data[1])
+        inputs, labels = data
+        inputs = inputs.cuda()
+        labels = labels.cuda()
+        loss += svi.step(inputs, labels)
 
     normalizer_train = len(train_loader.dataset)
     total_epoch_loss_train = loss / normalizer_train
         
     print("Epoch ", j, " Loss ", total_epoch_loss_train)
 
-
+'''
 net.cpu()
 n_samples = 10
 
@@ -202,3 +201,4 @@ yhats = predict_prob(x.view(-1,1,28,28))
 print("ground truth: ", y.cpu().item())
 print("predicted: ", yhats.cpu().numpy())
 plot(x, yhats)
+'''
