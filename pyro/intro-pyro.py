@@ -1,4 +1,5 @@
 import numpy as np
+import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,6 +16,16 @@ from pyro.infer import Trace_ELBO
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
+
+import sys, os
+sys.path.append(os.pardir)
+from common import noise_inject
+
+
+parser = argparse.ArgumentParser(description="parse args")
+parser.add_argument('-n', '--num-epochs', default=5, type=int)
+parser.add_argument('--datadir', default='/home/', type=string)
+args = parser.parse_args()
 
 
 
@@ -39,18 +50,10 @@ class BNN(nn.Module):
         x = self.fc2(x)
         return x
 
-        fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
-                            scale=torch.ones_like(self.fc1.weight))
-        fc1b_prior = Normal(loc=torch.zeros_like(self.fc1.bias),
-                            scale=torch.ones_like(self.fc1.bias))
-        fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
-                            scale=torch.ones_like(self.fc1.weight))
-        fc1w_prior = Normal(loc=torch.zeros_like(self.fc1.weight),
-                            scale=torch.ones_like(self.fc1.weight))
-
 
 net = BNN(1024, 10)
 net.cuda()
+
 
 def model(x_data, y_data):
     # define prior destributions
@@ -113,27 +116,48 @@ def guide(x_data, y_data):
     
     return lifted_module()
 
+
 optim = Adam({"lr": 0.01})
 svi = SVI(model, guide, optim, loss=Trace_ELBO())
 
 n_iterations = 5
 loss = 0
 
+# dataset create
+datadir = args.datadir
+trainwave = np.load(datadir+'dampedsinusoid_train.npy')
+trainlabel = torch.Tensor(np.genfromtxt(datadir+'dampedsinusoid_trainLabel.dat'))
+
+
+
+
 for j in range(n_iterations):
     loss = 0
+
+    trainsignal = torch.Tensor(noise_inject(trainwave, pSNR=5.0))
+    
+    traindata = torch.utils.data.TensorDataset(trainsignal,
+                                               torch.Tensor(trainwave.reshape(-1,1,8192)),
+                                               trainlabel)
+    
+    data_loader = torch.utils.data.DataLoader(traindata,
+                                              batch_size=256,
+                                              shuffle=True,
+                                              num_workers=4)
+
+
     for batch_id, data in enumerate(train_loader):
         data[0] = data[0].cuda()
         data[1] = data[1].cuda()
-        loss += svi.step(data[0].view(-1,1,28,28), data[1])
+        loss += svi.step(data[0].view(-1,1,8192), data[1])
 
     normalizer_train = len(train_loader.dataset)
     total_epoch_loss_train = loss / normalizer_train
-    
+        
     print("Epoch ", j, " Loss ", total_epoch_loss_train)
 
 
 net.cpu()
-
 n_samples = 10
 
 def predict(x):
