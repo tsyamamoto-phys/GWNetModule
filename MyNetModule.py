@@ -243,7 +243,34 @@ class MeanRelativeError(nn.Module):
         return mre
     
 
+class log_gaussian_error(nn.Module):
+
+    def __init__(self, alpha=1.0):
+        super(log_gaussian_error, self).__init__()
+        self.alpha = alpha
+
+
+    def _normalize_square_sum(self, df, Lambda):
+        
+        f0f0 = df[:,0] * df[:,0]
+        f0f1 = df[:,0] * df[:,1]
+        f1f1 = df[:,1] * df[:,1]
+        
+        # diagonal case
+        #a = f0f0*Lambda[:,0] + f1f1*Lambda[:,1]
+
+        # non diagonal case
+        a = f0f0 * Lambda[:,0] + 2 * f0f1 * Lambda[:,1] + f1f1 * Lambda[:,2]
+        return a
     
+
+    def forward(self, preds, Lambda, labels):
+        
+        det = Lambda[:,1]*Lambda[:,1] - Lambda[:,0]*Lambda[:,2]
+        predloss = self._normalize_square_sum(preds-labels, Lambda)
+        return torch.mean(-torch.log(det)/2. + predloss) 
+
+
 
 class cdf_error(nn.Module):
 
