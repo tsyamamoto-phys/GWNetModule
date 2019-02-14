@@ -24,7 +24,8 @@ from common import noise_inject
 
 parser = argparse.ArgumentParser(description="parse args")
 parser.add_argument('-n', '--num-epochs', default=5, type=int)
-parser.add_argument('--datadir', default='/home/', type=string)
+parser.add_argument('--datadir', default='/home/', type=str)
+parser.add_argument('--gpu', action='store_true')
 args = parser.parse_args()
 
 
@@ -33,11 +34,11 @@ class BNN(nn.Module):
     def __init__(self, hidden_size, output_size):
         super(BNN, self).__init__()
         self.conv1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=16)
-        self.pool1 = nn.MaxPooling1d(4, stride=4)
+        self.pool1 = nn.MaxPool1d(4, stride=4)
         self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=8, dilation=4)
-        self.pool2 = nn.MaxPooling1d(4, stride=4)
+        self.pool2 = nn.MaxPool1d(4, stride=4)
         self.conv3= nn.Conv1d(in_channels=32, out_channels=64, kernel_size=8, dilation=4)
-        self.pool3 = nn.MaxPooling1d(4, stride=4)
+        self.pool3 = nn.MaxPool1d(4, stride=4)
         self.fc1 = nn.Linear(64*119, hidden_size)
         self.fc2 = nn.Linear(hidden_size, output_size)
         
@@ -51,33 +52,33 @@ class BNN(nn.Module):
         return x
 
 
-net = BNN(1024, 10)
-net.cuda()
+net = BNN(1024, 2)
+if args.gpu: net.cuda()
 
 
 def model(x_data, y_data):
     # define prior destributions
 
-    fc1w_prior = Normal(loc=torch.zeros_like(net.fc1.weights),
-                        scale=torch.ones_like(net.fc1.weights))
+    fc1w_prior = Normal(loc=torch.zeros_like(net.fc1.weight),
+                        scale=torch.ones_like(net.fc1.weight))
     fc1b_prior = Normal(loc=torch.zeros_like(net.fc1.bias),
                         scale=torch.ones_like(net.fc1.bias))
-    fc2w_prior = Normal(loc=torch.zeros_like(net.fc2.weights),
-                        scale=torch.ones_like(net.fc2.weights))
+    fc2w_prior = Normal(loc=torch.zeros_like(net.fc2.weight),
+                        scale=torch.ones_like(net.fc2.weight))
     fc2b_prior = Normal(loc=torch.zeros_like(net.fc2.bias),
                         scale=torch.ones_like(net.fc2.bias))
 
     priors = {'fc.1weight': fc1w_prior,
               'fc1.bias': fc1b_prior, 
-              'out.weight': outw_prior,
-              'out.bias': outb_prior}
+              'fc2.weight': fc2w_prior,
+              'fc2.bias': fc2b_prior}
 
     
     lifted_module = pyro.random_module("module", net, priors)
-    lifted_reg_model = lifted_module()
+    lifted_nn_model = lifted_module()
     
-    yhat = lifted_reg_model(x_data)
-    pyro.sample("obs", Categorical(logits=lhat), obs=y_data)
+    yhat = lifted_nn_model(x_data)
+    pyro.sample("obs", obs=y_data)
 
 
 
@@ -94,23 +95,23 @@ def guide(x_data, y_data):
     fc1b_sigma_param = F.softplus(pyro.param("fc1b_sigma", fc1b_sigma))
     fc1b_prior = Normal(loc=fc1b_mu_param, scale=fc1b_sigma_param)
 
-    outw_mu = torch.randn_like(net.out.weight)
-    outw_sigma = torch.randn_like(net.out.weight)
-    outw_mu_param = pyro.param("outw_mu", outw_mu)
-    outw_sigma_param = F.softplus(pyro.param("outw_sigma", outw_sigma))
-    outw_prior = Normal(loc=outw_mu_param, scale=outw_sigma_param).independent(1)
+    fc2w_mu = torch.randn_like(net.fc2.weight)
+    fc2w_sigma = torch.randn_like(net.fc2.weight)
+    fc2w_mu_param = pyro.param("fc2w_mu", fc2w_mu)
+    fc2w_sigma_param = F.softplus(pyro.param("fc2w_sigma", fc2w_sigma))
+    fc2w_prior = Normal(loc=fc2w_mu_param, scale=fc2w_sigma_param).independent(1)
 
-    outb_mu = torch.randn_like(net.out.bias)
-    outb_sigma = torch.randn_like(net.out.bias)
-    outb_mu_param = pyro.param("outb_mu", outb_mu)
-    outb_sigma_param = F.softplus(pyro.param("outb_sigma", outb_sigma))
-    outb_prior = Normal(loc=outb_mu_param, scale=outb_sigma_param)
+    fc2b_mu = torch.randn_like(net.fc2.bias)
+    fc2b_sigma = torch.randn_like(net.fc2.bias)
+    fc2b_mu_param = pyro.param("fc2b_mu", fc2b_mu)
+    fc2b_sigma_param = F.softplus(pyro.param("fc2b_sigma", fc2b_sigma))
+    fc2b_prior = Normal(loc=fc2b_mu_param, scale=fc2b_sigma_param)
     
     priors = {
         'fc1.weight': fc1w_prior,
         'fc1.bias': fc1b_prior,
-        'out.weight': outw_prior,
-        'out.bias': outb_prior}
+        'fc2.weight': fc2w_prior,
+        'fc2.bias': fc2b_prior}
     
     lifted_module = pyro.random_module("module", net, priors)
     
@@ -123,20 +124,18 @@ svi = SVI(model, guide, optim, loss=Trace_ELBO())
 
 # dataset create
 datadir = args.datadir
-trainwave = np.load(datadir+'dampedsinusoid_train.npy')
-trainlabel = torch.Tensor(np.genfromtxt(datadir+'dampedsinusoid_trainLabel.dat'))
+trainwave = np.load(datadir+'TrainEOB_hPlus.npy')
+trainlabel = torch.Tensor(np.genfromtxt(datadir+'TrainLabel_new.dat'))
 
 
 
 
-for j in range(args.num-epochs):
+for j in range(args.num_epochs):
     loss = 0
 
-    trainsignal = torch.Tensor(noise_inject(trainwave, pSNR=5.0))
+    trainsignal, _ = torch.Tensor(noise_inject(trainwave, pSNR=5.0))
     
-    traindata = torch.utils.data.TensorDataset(trainsignal,
-                                               torch.Tensor(trainwave.reshape(-1,1,8192)),
-                                               trainlabel)
+    traindata = torch.utils.data.TensorDataset(trainsignal, trainlabel)
     
     train_loader = torch.utils.data.DataLoader(traindata,
                                               batch_size=256,
@@ -146,8 +145,9 @@ for j in range(args.num-epochs):
 
     for batch_id, data in enumerate(train_loader):
         inputs, labels = data
-        inputs = inputs.cuda()
-        labels = labels.cuda()
+        if args.gpu:
+            inputs = inputs.cuda()
+            labels = labels.cuda()
         loss += svi.step(inputs, labels)
 
     normalizer_train = len(train_loader.dataset)
