@@ -68,7 +68,7 @@ def model(x_data, y_data):
     fc2b_prior = Normal(loc=torch.zeros_like(net.fc2.bias),
                         scale=torch.ones_like(net.fc2.bias))
 
-    priors = {'fc.1weight': fc1w_prior,
+    priors = {'fc1.weight': fc1w_prior,
               'fc1.bias': fc1b_prior, 
               'fc2.weight': fc2w_prior,
               'fc2.bias': fc2b_prior}
@@ -107,11 +107,10 @@ def guide(x_data, y_data):
     fc2b_sigma_param = F.softplus(pyro.param("fc2b_sigma", fc2b_sigma))
     fc2b_prior = Normal(loc=fc2b_mu_param, scale=fc2b_sigma_param)
     
-    priors = {
-        'fc1.weight': fc1w_prior,
-        'fc1.bias': fc1b_prior,
-        'fc2.weight': fc2w_prior,
-        'fc2.bias': fc2b_prior}
+    priors = {'fc1.weight': fc1w_prior,
+              'fc1.bias': fc1b_prior,
+              'fc2.weight': fc2w_prior,
+              'fc2.bias': fc2b_prior}
     
     lifted_module = pyro.random_module("module", net, priors)
     
