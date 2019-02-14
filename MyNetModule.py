@@ -266,9 +266,9 @@ class log_gaussian_error(nn.Module):
 
     def forward(self, preds, Lambda, labels):
         
-        det = Lambda[:,1]*Lambda[:,1] - Lambda[:,0]*Lambda[:,2]
+        det = torch.abs(Lambda[:,1]*Lambda[:,1] - Lambda[:,0]*Lambda[:,2])
         predloss = self._normalize_square_sum(preds-labels, Lambda)
-        return torch.mean(-torch.log(det)/2. + predloss) 
+        return torch.mean(-self.alpha*torch.log(det)/2. + predloss) 
 
 
 
