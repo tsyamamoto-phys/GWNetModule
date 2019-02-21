@@ -1,18 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import os
-
-#import matplotlib.pyplot as plt
-from scipy import optimize
-from scipy.stats import multivariate_normal
-import load_gwdata as load
-
-
-def mkdir(dir):
-    if os.path.isdir(dir):
-        pass
-    else:
-        os.makedirs(dir)
-        
 
 
 
@@ -123,111 +111,15 @@ def _normalize(data):
     
 
 
+data1 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hPlus.npy')
+data2 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hPlus.npy')
+print(data1.shape, data2.shape)
 
+data_injected, _ = noise_inject([data1, data2], pSNR=30.0, shift_max=256)
 
-def _pickup_ringdown(waveform, kmax, koffset, length=512):
+print(data_injected.shape)
 
-    data = waveform[kmax-koffset : kmax-koffset+length]
-    return data
-
-
-
-def _normalize(data):
-    
-    mu = data.mean()
-    std = np.sqrt(data.var())
-    data_norm = (data - mu)/std
-    return data_norm
-    
-
-
-
-def noise_inject_ringdown(waveformset, pSNR, length=512, bandpass=False, mode='stdfix'):
-
-    N, L = waveformset.shape
-    dataset = np.empty((N, length))
-    for i in range(N):
-        koffset = 256 + np.random.randint(-20,20)
-        #koffset = 128
-        waveform = waveformset[i]
-        waveform, kmax = _noise_inject(waveform, pSNR, mode)
-        waveform = _pickup_ringdown(waveform, kmax, koffset, length=length)
-
-        if bandpass:
-            waveform = load.bandpass(waveform, 100.0, 1024.0)
-
-        waveform = _normalize(waveform)
-        dataset[i, :] = waveform
-
-    return dataset.reshape(N,1,length)
-
-
-
-
-
-def many_noise_inject(waveform, pSNR, N=1000, mode='stdfix'):
-
-    L = waveform.shape[-1]
-    dataset = np.empty((N, L))
-    for i in range(N):
-        data, _ = _noise_inject(waveform, pSNR, mode)
-        data = _normalize(data)
-        dataset[i,:] = data
-
-    return dataset.reshape(N, 1, L)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def sigma(cov):
-
-    w, _ = np.linalg.eig(cov)
-    norm = 1.0 / (2.0*np.pi*np.sqrt(w[0]*w[1]))
-
-    p50 = 0.5 * norm
-    p75 = 0.25 * norm
-    p90 = 0.01 * norm
-    return [float(p90), float(p75), float(p50)]
-
-
-    """
-    s1 = 1 / 3.1514872 * norm
-    s3 = 0.01 * norm
-    s5 = 1.0 / 1744278 * norm
-
-    return [float(s5), float(s3), float(s1)]
-    """
-
-
-
-
-
-if __name__=='__main__':
-
-
-    cov = np.array([[1.0, 0.0], [0.0, 1.0]])
-    cont = sigma(cov)
-    print(cont)
-
-    x, y = np.mgrid[-10:10:.1, -10:10:.1]
-    pos = np.empty(x.shape + (2,))
-    pos[:,:,0] = x
-    pos[:,:,1] = y
-    rv = multivariate_normal([0.0, 0.0], cov)
-
-
-    plt.figure()
-    plt.contour(x, y, rv.pdf(pos), levels=cont, colors=['k', 'r', 'm', 'b'])
-    plt.grid()
-    
-    plt.savefig('test.png')
+plt.figure()
+plt.plot(data_injected[100,0])
+plt.plot(data_injected[100,1])
+plt.show()
