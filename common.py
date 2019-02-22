@@ -122,7 +122,7 @@ def _normalize(data):
     for c in range(C):
         mu = data[c].mean()
         std = np.sqrt(data[c].var())
-        data_norm = (data[c] - mu)/std
+        data_norm[c] = (data[c] - mu)/std
     return data_norm
     
 
@@ -212,13 +212,9 @@ if __name__=='__main__':
     data1 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hPlus.npy')
     data2 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hPlus.npy')
 
-    data_injected, data = noise_inject([data1, data2], pSNR=[10.0, 30.0], shift_max=256)
+    data_injected = noise_inject_ringdown([data1, data2], pSNR=10.0)
     print(data_injected.shape)
-
-    plt.figure()
-    plt.plot(data[100, 0])
-    plt.plot(data[100, 1])
-
+    
     plt.figure()
     plt.plot(data_injected[100, 0])
     plt.plot(data_injected[100, 1])
