@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import os
 
 #import matplotlib.pyplot as plt
@@ -41,11 +42,10 @@ def noise_inject(array_list, pSNR, shift_max=None, mode='stdfix'):
 
     dataset = np.empty(waveformset.shape)
     for n in range(N):
-        for c in range(C):
-            waveform = waveformset[n,c]
-            data, _ = _noise_inject(waveform, pSNR, mode)
-            data = _normalize(data)
-            dataset[n,c,:] = data
+        waveform = waveformset[n]
+        data, _ = _noise_inject(waveform, pSNR, mode)
+        data = _normalize(data)
+        dataset[n] = data
 
     return dataset, waveformset 
 
@@ -77,11 +77,11 @@ def _noise_inject(waveform, pSNR, mode='stdfix'):
 
     '''
     This method will treat one waveform.
-    "waveform" should have a shape (L,) 
+    "waveform" should have a shape (C, L)
     '''
     assert mode is 'stdfix' or 'ampfix', 'invalid mode: use "stdfix" or "ampfix".'
 
-    L = waveform.shape
+    C, L = waveform.shape
     kmax = abs(waveform).argmax()
     peak = abs(waveform).max()
 
@@ -94,7 +94,7 @@ def _noise_inject(waveform, pSNR, mode='stdfix'):
         else:
             amp = pSNR / peak
         
-        noise = np.random.normal(0.0, 1.0, size=L)
+        noise = np.random.normal(0.0, 1.0, size=(C,L))
         inject_signal = amp*waveform
         data = inject_signal + noise
 
@@ -106,7 +106,7 @@ def _noise_inject(waveform, pSNR, mode='stdfix'):
         else:
             sigma = (peak / pSNR)
         
-        noise = np.random.normal(0.0, sigma, size=L)
+        noise = np.random.normal(0.0, sigma, size=(C,L))
         data = waveform + noise
         
     return data, kmax
@@ -116,9 +116,13 @@ def _noise_inject(waveform, pSNR, mode='stdfix'):
 
 def _normalize(data):
     
-    mu = data.mean()
-    std = np.sqrt(data.var())
-    data_norm = (data - mu)/std
+    C, L = data.shape
+    data_norm = np.zeros_like(data)
+
+    for c in range(C):
+        mu = data[c].mean()
+        std = np.sqrt(data[c].var())
+        data_norm = (data[c] - mu)/std
     return data_norm
     
 
@@ -142,14 +146,16 @@ def _normalize(data):
 
 
 
-def noise_inject_ringdown(waveformset, pSNR, length=512, bandpass=False, mode='stdfix'):
+def noise_inject_ringdown(array_list, pSNR, length=512, bandpass=False, mode='stdfix'):
+    
+    C = len(array_list)
+    N, L = array_list[0].shape
 
-    N, L = waveformset.shape
-    dataset = np.empty((N, length))
-    for i in range(N):
+    dataset = np.zeros((N, C, L))
+
+    for n in range(N):
         koffset = 256 + np.random.randint(-20,20)
-        #koffset = 128
-        waveform = waveformset[i]
+        waveform = array_list[c]
         waveform, kmax = _noise_inject(waveform, pSNR, mode)
         waveform = _pickup_ringdown(waveform, kmax, koffset, length=length)
 
@@ -157,9 +163,9 @@ def noise_inject_ringdown(waveformset, pSNR, length=512, bandpass=False, mode='s
             waveform = load.bandpass(waveform, 100.0, 1024.0)
 
         waveform = _normalize(waveform)
-        dataset[i, :] = waveform
+        dataset[n] = waveform
 
-    return dataset.reshape(N,1,length)
+    return dataset
 
 
 
@@ -175,16 +181,6 @@ def many_noise_inject(waveform, pSNR, N=1000, mode='stdfix'):
         dataset[i,:] = data
 
     return dataset.reshape(N, 1, L)
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -215,19 +211,18 @@ def sigma(cov):
 if __name__=='__main__':
 
 
-    cov = np.array([[1.0, 0.0], [0.0, 1.0]])
-    cont = sigma(cov)
-    print(cont)
+    data1 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hPlus.npy')
+    data2 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hPlus.npy')
 
-    x, y = np.mgrid[-10:10:.1, -10:10:.1]
-    pos = np.empty(x.shape + (2,))
-    pos[:,:,0] = x
-    pos[:,:,1] = y
-    rv = multivariate_normal([0.0, 0.0], cov)
-
+    data_injected, data = noise_inject([data1, data2], pSNR=[10.0, 30.0], shift_max=256)
+    print(data_injected.shape)
 
     plt.figure()
-    plt.contour(x, y, rv.pdf(pos), levels=cont, colors=['k', 'r', 'm', 'b'])
-    plt.grid()
+    plt.plot(data[100, 0])
+    plt.plot(data[100, 1])
+
+    plt.figure()
+    plt.plot(data_injected[100, 0])
+    plt.plot(data_injected[100, 1])
+    plt.show()
     
-    plt.savefig('test.png')
