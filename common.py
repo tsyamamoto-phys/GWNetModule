@@ -156,6 +156,7 @@ def noise_inject_ringdown(array_list, pSNR, length=512, bandpass=False, mode='st
         waveform = array[n]
         waveform, kmax = _noise_inject(waveform, pSNR, mode)
         waveform = _pickup_ringdown(waveform, kmax, koffset, length=length)
+        print(waveform.shape)
 
         if bandpass:
             waveform = load.bandpass(waveform, 100.0, 1024.0)
