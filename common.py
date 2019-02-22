@@ -1,8 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import os
 
-#import matplotlib.pyplot as plt
 from scipy import optimize
 from scipy.stats import multivariate_normal
 import load_gwdata as load
