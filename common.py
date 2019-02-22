@@ -131,18 +131,11 @@ def _normalize(data):
 
 def _pickup_ringdown(waveform, kmax, koffset, length=512):
 
-    data = waveform[kmax-koffset : kmax-koffset+length]
+    """
+    waveform should have a shape (C, L).
+    """
+    data = waveform[:, kmax-koffset : kmax-koffset+length]
     return data
-
-
-
-def _normalize(data):
-    
-    mu = data.mean()
-    std = np.sqrt(data.var())
-    data_norm = (data - mu)/std
-    return data_norm
-    
 
 
 
@@ -150,12 +143,17 @@ def noise_inject_ringdown(array_list, pSNR, length=512, bandpass=False, mode='st
     
     C = len(array_list)
     N, L = array_list[0].shape
+    array = np.zeros((N,C,L))
 
-    dataset = np.zeros((N, C, L))
+    for n in range(N):
+        for c in range(C):
+            array[n,c,:] = array_list[c][n]
+
+    dataset = np.zeros((N, C, length))
 
     for n in range(N):
         koffset = 256 + np.random.randint(-20,20)
-        waveform = array_list[c]
+        waveform = array[n]
         waveform, kmax = _noise_inject(waveform, pSNR, mode)
         waveform = _pickup_ringdown(waveform, kmax, koffset, length=length)
 
