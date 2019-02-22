@@ -82,8 +82,8 @@ def _noise_inject(waveform, pSNR, mode='stdfix'):
     assert mode is 'stdfix' or 'ampfix', 'invalid mode: use "stdfix" or "ampfix".'
 
     C, L = waveform.shape
-    kmax = abs(waveform).argmax()
-    peak = abs(waveform).max()
+    kmax = abs(waveform[0]).argmax()
+    peak = abs(waveform[0]).max()
 
 
     if mode=='stdfix':
@@ -156,7 +156,6 @@ def noise_inject_ringdown(array_list, pSNR, length=512, bandpass=False, mode='st
         waveform = array[n]
         waveform, kmax = _noise_inject(waveform, pSNR, mode)
         waveform = _pickup_ringdown(waveform, kmax, koffset, length=length)
-        print(n, waveform.shape)
 
         if bandpass:
             waveform = load.bandpass(waveform, 100.0, 1024.0)
@@ -209,9 +208,22 @@ def sigma(cov):
 
 if __name__=='__main__':
 
+    def down_sampling(array):
 
-    data1 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hPlus.npy')
-    data2 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hCross.npy')
+        '''
+        array have a shape (N, L)
+        '''
+        array_ds = array[:,::2]
+        return array_ds
+
+    data1 = down_sampling(np.load(os.environ['HOME']+'/gwdata/TrainEOB_hPlus.npy'))
+    data2 = down_sampling(np.load(os.environ['HOME']+'/gwdata/TrainEOB_hCross.npy'))
+
+    plt.figure()
+    plt.plot(data1[1])
+    plt.plot(data2[1])
+    plt.show()
+
 
     data_injected = noise_inject_ringdown([data1, data2], pSNR=10.0)
     print(data_injected.shape)
