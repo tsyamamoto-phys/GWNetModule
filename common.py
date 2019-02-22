@@ -211,7 +211,7 @@ if __name__=='__main__':
 
 
     data1 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hPlus.npy')
-    data2 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hPlus.npy')
+    data2 = np.load(os.environ['HOME']+'/gwdata/TestEOB_hCross.npy')
 
     data_injected = noise_inject_ringdown([data1, data2], pSNR=10.0)
     print(data_injected.shape)
