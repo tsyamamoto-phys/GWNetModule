@@ -179,8 +179,6 @@ def train_model(model, criterion, optimizer, data_loader, modeldir,
                 epoch=0, modelsaveepoch=None):
 
     running_loss = 0.0
-    klloss = 0.0
-    recloss = 0.0
     for i, data in enumerate(data_loader, 0):
         
         inputs, labels = data
@@ -190,11 +188,8 @@ def train_model(model, criterion, optimizer, data_loader, modeldir,
             
         optimizer.zero_grad()
         outputs = model(inputs)
-        #loss, kl, rec = criterion(labels, *outputs)
         loss = criterion(labels, outputs)
         running_loss += loss.data
-        #klloss += kl.data
-        #recloss += rec.data
     
         loss.backward()
         optimizer.step()    # Does the update
