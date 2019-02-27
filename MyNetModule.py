@@ -237,7 +237,7 @@ class MeanRelativeError(nn.Module):
         super(MeanRelativeError, self).__init__()
         
     def forward(self, outputs, labels):
-        relerr_for_eachdata = torch.sum(torch.abs(outputs - labels) / labels, dim=1)
+        relerr_for_eachdata = torch.sum(torch.abs((outputs - labels) / labels), dim=1)
         mre = torch.mean(relerr_for_eachdata)
 
         return mre
