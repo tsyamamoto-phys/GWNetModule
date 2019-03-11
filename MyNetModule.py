@@ -238,6 +238,24 @@ class MeanRelativeError(nn.Module):
         return mre
     
 
+class errorbarError(nn.Module):
+
+    def __init__(self, a=1.0, d=1.0):
+        super(errorbarError, self).__init__()
+        self.a = a
+        self.d = d
+
+    def forward(self, df_t, df_p):
+        
+        mse = torch.sum(torch.tanh((df_t-df_p)/self.d), dim=-1)
+        reg = torch.sum((df_t-df_p)**2.0, dim=-1)
+
+        return torch.mean(mse + self.a*reg)
+ 
+
+
+
+
 class log_gaussian_error(nn.Module):
 
     def __init__(self, alpha=1.0):
