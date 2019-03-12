@@ -15,7 +15,6 @@ def mkdir(dir):
         
 
 
-
 def noise_inject(array_list, pSNR, shift_max=None, mode='stdfix'):
     '''
     mode: ampfix or stdfix
@@ -33,13 +32,11 @@ def noise_inject(array_list, pSNR, shift_max=None, mode='stdfix'):
         for n in range(N):
             for c in range(C):
                 waveformset[n, c, :] = array_list[c][n,:]
-
+    
     else:
         waveformset = shift(array_list, shift_max)
 
 
-
-    dataset = np.empty(waveformset.shape)
     for n in range(N):
         waveform = waveformset[n]
         data, _ = _noise_inject(waveform, pSNR, mode)
@@ -68,7 +65,6 @@ def shift(array_list, shift_max):
             
         
     return shifted_array
-
 
 
 
@@ -115,16 +111,11 @@ def _noise_inject(waveform, pSNR, mode='stdfix'):
 
 def _normalize(data):
     
-    C, L = data.shape
-    data_norm = np.zeros_like(data)
-
-    for c in range(C):
-        mu = data[c].mean()
-        std = np.sqrt(data[c].var())
-        data_norm[c] = (data[c] - mu)/std
+    mu = data.mean(axis=-1, keepdims=True)
+    std = np.sqrt(data.var(axis=-1, keepdims=True))
+    data_norm = (data - mu) / std
     return data_norm
     
-
 
 
 
