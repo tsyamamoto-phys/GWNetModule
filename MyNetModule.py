@@ -200,7 +200,6 @@ def train_model(model, criterion, optimizer, data_loader, modeldir,
             torch.save(model.state_dict(), modeldir+'model_%d.pt'%(epoch+1))
             torch.save(optimizer.state_dict(), modeldir+'optimizer_%d.pt'%(epoch+1))
 
-    #return model, running_loss / (i+1), klloss/(i+1), recloss/(i+1)
     return model, running_loss / (i+1)
 
 
