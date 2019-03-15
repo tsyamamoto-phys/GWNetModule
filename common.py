@@ -15,13 +15,16 @@ def mkdir(dir):
         
 
 
-def noise_inject(array_list, pSNR, shift_max=None, mode='stdfix'):
+def noise_inject(array_list, pSNR, shift_max=None, mode='stdfix', seed=None):
     '''
     mode: ampfix or stdfix
     each components of array_list are input signals from different channels
     '''
 
     assert mode is 'stdfix' or 'ampfix', 'invalid mode: use "stdfix" or "ampfix"'
+
+    if seed is not None:
+        np.random.seed(seed)
     
     C = len(array_list)
     N, L = array_list[0].shape
