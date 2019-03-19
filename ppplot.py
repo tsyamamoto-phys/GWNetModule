@@ -2,6 +2,7 @@ import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 
+
 def threshold(alpha):
 
     beta2 = -2.0 * np.log(1.0-alpha)
