@@ -146,6 +146,10 @@ class LowMassBinaryGW():
 
 if __name__ == '__main__':
 
+    from whitening import whiten
+    from scipy.interpolate import interp1d
+
+
     detector = 'L1'
     alpha = 0.0
     delta = 0.0
@@ -153,29 +157,23 @@ if __name__ == '__main__':
     phir = 0.0
     phi0 = 0.0
 
-    time = np.arange(0.0, 60*60*24, 1.0/4096)
+    time = np.arange(0.0, 60*60, 1.0/4096)
 
     det = GWDetector(detector)
     
     binary = LowMassBinaryGW(time, 100.0, 1e-3, alpha, delta, pol, phir, det)
     h, h2 = binary.get_waveform(400.0, phi0)
     f, t, Zxx = signal.stft(h, 4096, nperseg=4096*60)
-    h_f = np.fft.rfft(h)
-    freq = np.fft.rfftfreq(len(h), time[1]-time[0])
 
-    def subsample(data,sample_size):
-        samples = list(zip(*[iter(data)]*sample_size))
-        return map(lambda x: sum(x) / float(len(x)), samples)
-
-
-    plt.figure()
-    plt.plot(time[:4096], h[:4096])
-
+    psddata = np.genfromtxt('ZERO_DET_high_P.txt')
+    psdf = psddata[:,0]
+    psd = psddata[:,1]
+    interp_psd = interp1d(psdf, psd, fill_value="extrapolate")
+    h_wh = whiten(h, interp_psd, time[1]-time[0])
 
     plt.figure()
-    plt.loglog(freq, abs(h_f))
-    plt.xlabel('frequency[Hz]')
-    plt.ylabel('strain')
+    plt.plot(time[:4096], h_wh[:4096])
+
 
     plt.figure()
     plt.pcolormesh(t, f, np.abs(Zxx))
