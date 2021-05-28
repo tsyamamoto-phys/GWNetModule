@@ -5,7 +5,7 @@ vae.py
 import numpy as np
 import torch
 import torch.nn as nn
-import _utils as u
+from . import _utils as u
 
 
 class TSYAutoEncoder(nn.Module):
@@ -119,3 +119,23 @@ class TSYAutoEncoder(nn.Module):
         z = self.TSYEncoder(x)
         print("internal size: ", z.size())
         return self.TSYDecoder(z)
+
+
+if __name__ == "__main__":
+
+    params = {
+        'conv_channels': [8,8,8],
+        'conv_kernels': [16,16,16],
+        'pool_kernels': [2,2,2],
+        'deconv_channels': [8,8,2],
+        'deconv_kernels': [16,16,16],
+        'deconv_dilations': [1,1,1],
+        'deconv_pads': [0,0,0],
+        'upsample_scales': [2,2,2]
+    }
+
+    net = TSYAutoEncoder(in_features=512, params=params, printflg=True)
+
+    inputs = torch.empty((10,2,512)).uniform_(0.0, 1.0)
+    outputs = net(inputs)
+    print(outputs.size())
