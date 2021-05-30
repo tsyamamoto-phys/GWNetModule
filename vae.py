@@ -22,6 +22,7 @@ class TSYAutoEncoder(nn.Module):
         deconv_c = params['deconv_channels']
         deconv_k = params['deconv_kernels']
         deconv_p = params['deconv_pads']
+        deconv_op = params['deconv_outpads']
         upsample_s = params['upsample_scales']
 
         self.Nconv = len(params['conv_channels'])
@@ -69,10 +70,10 @@ class TSYAutoEncoder(nn.Module):
         print("Upsampling")
         self.L = u._cal_length4upsample(self.L, upsample_s[0], printflg=printflg)
 
-        decoderlayers.append(nn.ConvTranspose1d(in_channels=conv_c[-1], out_channels=deconv_c[0], kernel_size=deconv_k[0], padding=deconv_p[0]))
+        decoderlayers.append(nn.ConvTranspose1d(in_channels=conv_c[-1], out_channels=deconv_c[0], kernel_size=deconv_k[0], padding=deconv_p[0], output_padding=deconv_op[0]))
         decoderlayers.append(nn.ReLU())
         print("ConvTranpose")
-        self.L = u._cal_length4deconv(self.L, deconv_k[0], printflg=printflg)
+        self.L = u._cal_length4deconv(self.L, deconv_k[0], pad=deconv_p[0], outpad=deconv_op[0], printflg=printflg)
 
         for i in range(self.Ndeconv -1):
 
@@ -80,9 +81,9 @@ class TSYAutoEncoder(nn.Module):
             print("Upsampling")
             self.L = u._cal_length4upsample(self.L, upsample_s[i+1], printflg=printflg)
 
-            decoderlayers.append(nn.ConvTranspose1d(in_channels=deconv_c[i], out_channels=deconv_c[i+1], kernel_size=deconv_k[i+1], padding=deconv_p[i+1]))
+            decoderlayers.append(nn.ConvTranspose1d(in_channels=deconv_c[i], out_channels=deconv_c[i+1], kernel_size=deconv_k[i+1], padding=deconv_p[i+1], output_padding=deconv_op[i+1]))
             print("ConvTranpose")
-            self.L = u._cal_length4deconv(self.L, deconv_k[i+1], printflg=printflg)
+            self.L = u._cal_length4deconv(self.L, deconv_k[i+1],  pad=deconv_p[i+1], outpad=deconv_op[i+1], printflg=printflg)
             if not (i == self.Ndeconv-2):
                 decoderlayers.append(nn.ReLU())
 
@@ -92,9 +93,9 @@ class TSYAutoEncoder(nn.Module):
         if self.L == in_features:
             pass
         else:
-            print("#"*50)
+            print("#"*60)
             print("# CAUTION: input size and output size do not coincide.")
-            print("#"*50)
+            print("#"*60)
 
     
     def TSYEncoder(self, x):
@@ -115,9 +116,11 @@ class TSYAutoEncoder(nn.Module):
 
 
     def __call__(self, x):
-        print("input size: ", x.size())
+        print("input size: ")
+        print(x.size())
         z = self.TSYEncoder(x)
-        print("internal size: ", z.size())
+        print("internal size: ")
+        print(z.size())
         return self.TSYDecoder(z)
 
 
