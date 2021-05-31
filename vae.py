@@ -2,22 +2,9 @@
 vaenew.py
 (Takahiro S. Yamamoto)
 """
-import numpy as np
 import torch
 import torch.nn as nn
 from . import _utils as u
-
-class GenerateLayer():
-    def __init__(self):
-        self.LayersDict = {}
-        self.LayersDict["conv1d"] = nn.Conv1d
-        self.LayersDict["maxpool1d"] = nn.MaxPool1d
-        self.LayersDict["relu"] = nn.ReLU
-        self.LayersDict["upsample"] = nn.Upsample
-        self.LayersDict["convtranspose1d"] = nn.ConvTranspose1d
-
-    def __call__(self, key):
-        return self.LayersDict[key]
 
 
 class TSYAutoEncoder(nn.Module):
@@ -25,7 +12,7 @@ class TSYAutoEncoder(nn.Module):
     def __init__(self, netstructure):
         super(TSYAutoEncoder, self).__init__()
 
-        gl = GenerateLayer()
+        gl = u.GenerateLayer()
 
         encoderlayers = []
         for l in netstructure["Encoder"]:

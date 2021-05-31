@@ -2,6 +2,7 @@
 _utils.py
 """
 import math
+import torch.nn as nn
 
 def _cal_length(N, k, s=1, d=1, printflg=False):
     
@@ -21,3 +22,16 @@ def _cal_length4upsample(N, scale, printflg=False):
     ret = N * scale
     if printflg: print("output length: ", ret)
     return ret
+
+
+class GenerateLayer():
+    def __init__(self):
+        self.LayersDict = {}
+        self.LayersDict["conv1d"] = nn.Conv1d
+        self.LayersDict["maxpool1d"] = nn.MaxPool1d
+        self.LayersDict["relu"] = nn.ReLU
+        self.LayersDict["upsample"] = nn.Upsample
+        self.LayersDict["convtranspose1d"] = nn.ConvTranspose1d
+
+    def __call__(self, key):
+        return self.LayersDict[key]
