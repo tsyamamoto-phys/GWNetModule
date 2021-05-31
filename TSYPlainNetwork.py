@@ -12,7 +12,7 @@ class TSYPlainNetwork(nn.Module):
 
         gl = u.GenerateLayer()
         layers = []
-        for l in netstructure:
+        for l in netstructure["Net"]:
             layername = l["lname"]
             layers.append(gl.LayersDict[layername](**(l["params"])))
         self.layers = nn.ModuleList(layers)
