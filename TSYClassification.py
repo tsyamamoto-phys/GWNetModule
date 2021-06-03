@@ -14,5 +14,5 @@ def vector2binaryclass(vec, threshold=0.5):
     classint: torch.long
     """
     
-    return ((x > threshold)[:,1]).type(torch.long)
+    return ((vec > threshold)[:,1]).type(torch.long)
 
