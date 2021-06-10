@@ -1,7 +1,22 @@
+"""
+TSYLoss.py
+(2021.06.10)
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+
+
+class TSY_KLDiv_withStdNormal(nn.Module):
+    def __init__(self):
+        super(TSY_KLDiv_withStdNormal, self).__init__()
+
+    def forward(self, mu, logvar):
+        Ndim = mu.size()[1]
+        return - 0.5 * (Ndim + torch.sum(logvar - mu**2.0 - logvar.exp_(), dim=-1))
+
 
 
 
