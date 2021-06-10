@@ -14,6 +14,15 @@ class TSY_KLDiv_withStdNormal(nn.Module):
         super(TSY_KLDiv_withStdNormal, self).__init__()
 
     def forward(self, mu, logvar):
+        """Calculate KL divergence with standard normal distribution
+
+        Args:
+            mu (torch.tensor): mean of the approximated pdf
+            logvar (torch.tensor): logarithm of the variance of the approximated pdf
+
+        Returns:
+            KL loss (torch.tensor): KL loss
+        """
         Ndim = mu.size()[1]
         return - 0.5 * (Ndim + torch.sum(logvar - mu**2.0 - logvar.exp_(), dim=-1))
 
