@@ -24,7 +24,7 @@ class TSY_KLDiv_withStdNormal(nn.Module):
             KL loss (torch.tensor): KL loss
         """
         Ndim = mu.size()[1]
-        return - 0.5 * (Ndim + torch.sum(logvar - mu**2.0 - logvar.exp_(), dim=-1))
+        return - 0.5 * torch.mean((Ndim + torch.sum(logvar - mu**2.0 - logvar.exp_(), dim=-1)))
 
 
 
