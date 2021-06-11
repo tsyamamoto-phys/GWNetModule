@@ -24,31 +24,25 @@ class TSYAutoEncoder(nn.Module):
         encoderlayers = []
         for l in netstructure["Encoder"]:
             layername = l["lname"]
-            print("encoder: ", layername)
             encoderlayers.append(gl.LayersDict[layername](**(l["params"])))
         self.encoder = nn.ModuleList(encoderlayers)
 
         decoderlayers = []
         for l in netstructure["Decoder"]:
             layername = l["lname"]
-            print("decoder: ", layername)
             decoderlayers.append(gl.LayersDict[layername](**(l["params"])))
         self.decoder = nn.ModuleList(decoderlayers)
 
 
     def Encode(self, x):
-        print("Encode")
         for i, l in enumerate(self.encoder):
             x = l(x)
-            print(i, x.size())
         return x
 
 
     def Decode(self, x):
-        print("Decode")
         for i, l in enumerate(self.decoder):
             x = l(x)
-            print(i, x.size())
         return x
 
 
@@ -76,7 +70,6 @@ class TSYVariationalAutoEncoder(nn.Module):
         encoderlayers = []
         for l in netstructure["Encoder"]:
             layername = l["lname"]
-            print("encoder: ", layername)
             encoderlayers.append(gl.LayersDict[layername](**(l["params"])))
         self.encoder = nn.ModuleList(encoderlayers)
         # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
@@ -89,7 +82,6 @@ class TSYVariationalAutoEncoder(nn.Module):
         decoderlayers = []
         for l in netstructure["Decoder"]:
             layername = l["lname"]
-            print("decoder: ", layername)
             decoderlayers.append(gl.LayersDict[layername](**(l["params"])))
         self.decoder = nn.ModuleList(decoderlayers)
 
