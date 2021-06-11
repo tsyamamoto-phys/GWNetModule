@@ -34,6 +34,7 @@ class GenerateLayer():
         self.LayersDict["convtranspose1d"] = nn.ConvTranspose1d
         self.LayersDict["flatten"] = nn.Flatten
         self.LayersDict["linear"] = nn.Linear
+        self.LayersDict["Unflatten"] = nn.Unflatten
 
     def __call__(self, key):
         return self.LayersDict[key]

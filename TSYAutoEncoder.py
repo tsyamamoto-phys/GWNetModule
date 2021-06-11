@@ -5,8 +5,8 @@ TSYAutoEncoder.py
 import torch
 import torch.nn as nn
 import json
-import _utils as u
-#from . import _utils as u
+#import _utils as u
+from . import _utils as u
 
 
 class TSYAutoEncoder(nn.Module):
