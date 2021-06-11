@@ -50,6 +50,11 @@ class TSYAutoEncoder(nn.Module):
         for param in self.encoder.parameters():
             param.requires_grad = False
 
+    def forward(self, x):
+        x = self.Encode(x)
+        x = self.Decode(x)
+        return x
+
 
 
 class TSYVariationalAutoEncoder(nn.Module):
