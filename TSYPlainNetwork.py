@@ -25,4 +25,5 @@ class TSYPlainNetwork(nn.Module):
                 print("layer size: ", x.size())
             x = l(x)
         print("output size: ", x.size())
+        self.showsize = False
         return x
