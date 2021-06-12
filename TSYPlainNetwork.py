@@ -7,7 +7,7 @@ from . import _utils as u
 
 class TSYPlainNetwork(nn.Module):
 
-    def __init__(self, netstructure):
+    def __init__(self, netstructure, showsize=False):
         super(TSYPlainNetwork, self).__init__()
 
         gl = u.GenerateLayer()
@@ -17,7 +17,12 @@ class TSYPlainNetwork(nn.Module):
             layers.append(gl.LayersDict[layername](**(l["params"])))
         self.layers = nn.ModuleList(layers)
 
+        self.showsize = showsize
+
     def forward(self, x):
         for l in self.layers:
+            if self.showsize:
+                print("layer size: ", x.size())
             x = l(x)
+        print("output size: ", x.size())
         return x
