@@ -3,7 +3,7 @@ _utils.py
 """
 import math
 import torch.nn as nn
-from TSYLayers import ResidualBlock1d
+from gwnet.TSYLayers import TSYResidualBlock1d
 
 def _cal_length(N, k, s=1, d=1, printflg=False):
     
@@ -37,7 +37,7 @@ class GenerateLayer():
         self.LayersDict["flatten"] = nn.Flatten
         self.LayersDict["linear"] = nn.Linear
         self.LayersDict["Unflatten"] = nn.Unflatten
-        self.LayersDict["residual block"] = ResidualBlock1d
+        self.LayersDict["residual block"] = TSYResidualBlock1d
 
     def __call__(self, key):
         return self.LayersDict[key]
