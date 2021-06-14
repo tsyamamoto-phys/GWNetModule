@@ -5,9 +5,9 @@ import torch.nn as nn
 
 class TSYResidualBlock1d(nn.Module):
 
-    def __init__(self, in_channels, out_channels, hidden_channels, kernel_size=4):
+    def __init__(self, in_channels, out_channels, hidden_channels, kernel_size=4, dilation=1):
         super(TSYResidualBlock1d, self).__init__()
-        self.conv1 = nn.Conv1d(in_channels=in_channels, out_channels=hidden_channels, kernel_size=1)
+        self.conv1 = nn.Conv1d(in_channels=in_channels, out_channels=hidden_channels, kernel_size=1, dilation=dilation)
         self.relu1 = nn.ReLU()
         self.conv2 = nn.Conv1d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=kernel_size)
         self.relu2 = nn.ReLU()

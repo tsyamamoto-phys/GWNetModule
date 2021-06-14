@@ -30,6 +30,7 @@ class GenerateLayer():
         self.LayersDict = {}
         self.LayersDict["conv1d"] = nn.Conv1d
         self.LayersDict["maxpool1d"] = nn.MaxPool1d
+        self.LayersDict["avgpool1d"] = nn.AvgPool1d
         self.LayersDict["relu"] = nn.ReLU
         self.LayersDict["upsample"] = nn.Upsample
         self.LayersDict["convtranspose1d"] = nn.ConvTranspose1d
