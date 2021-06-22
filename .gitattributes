@@ -1,2 +1,0 @@
-testset filter=lfs diff=lfs merge=lfs -text
-testset/dampedsinusoid_train.npy filter=lfs diff=lfs merge=lfs -text

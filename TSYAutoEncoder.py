@@ -1,6 +1,5 @@
 """
 TSYAutoEncoder.py
-(Takahiro S. Yamamoto)
 """
 import torch
 import torch.nn as nn
