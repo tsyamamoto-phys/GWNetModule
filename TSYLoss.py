@@ -1,6 +1,5 @@
 """
 TSYLoss.py
-(2021.06.10)
 """
 
 import torch
@@ -23,7 +22,6 @@ class TSY_KLDiv_withStdNormal(nn.Module):
         Returns:
             KL loss (torch.tensor): KL loss
         """
-        Ndim = mu.size()[1]
         return - 0.5 * torch.mean(torch.sum(1.0 + logvar - mu**2.0 - logvar.exp_(), dim=-1))
 
 
