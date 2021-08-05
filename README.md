@@ -9,7 +9,7 @@ It consists of neural network classes and loss functions.
 
 ```TSYAutoencoder.py``` consists of the implementation of conditional variational autoencoder. This is useful for a rapid parameter estimation. This is originally proposed by Gabbard *et al.* (2019)[2]. They applied the conditional variational autoencoder for GW signals from merging binary black holes. I applied CVAE for ringdown graviational waves from merged remnant black holes [3].
 
-You can find the code ```Vitamin_C``` which is implemented by H. Gabbard. It is based on TensorFlow.
+In Gabbard's GitHub, you can find the code ```Vitamin_C``` which is based on TensorFlow.
 
 
 1. D. George \& E. A. Huerta, Physical Review D 97, 044039 (2018)
