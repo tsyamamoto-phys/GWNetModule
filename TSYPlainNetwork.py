@@ -28,3 +28,10 @@ class TSYPlainNetwork(nn.Module):
             print("output size: ", x.size())
             self.showsize = False
         return x
+
+    def check_intermediate_outputs(self, x):
+        intermediateoutputs = []
+        for l in self.layers:
+            x = l(x)
+            intermediateoutputs.append(x)
+        return intermediateoutputs
