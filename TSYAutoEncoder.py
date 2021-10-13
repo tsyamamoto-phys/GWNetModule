@@ -3,6 +3,7 @@ TSYAutoEncoder.py
 """
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import json
 #import _utils as u
 from . import _utils as u
@@ -122,8 +123,204 @@ class TSYVariationalAutoEncoder(nn.Module):
 
 
 
+class TSYConditionalVariationalAutoEncoder(nn.Module):
+
+    def __init__(self, netstructure, cudaflg = False):
+        super(TSYConditionalVariationalAutoEncoder, self).__init__()
+
+        # Check cuda
+        self.cudaflg = cudaflg
+        # Check net structure
+        if isinstance(netstructure, str):
+            with open(netstructure, "r") as f:
+                print(f"net structure is loaded from `{netstructure}`")
+                netstructure = json.load(f)
+        # Prepare layer generator
+        gl = u.GenerateLayer()
+
+        # parameters
+        self.Nhid = netstructure["Dimension of hidden variable"]
+        self.Nout = netstructure["Dimension of output"]
+
+        ##### Encoder 1 layers ################################################################################
+        encoder1layers = []
+        for l in netstructure["Encoder1"]:
+            layername = l["lname"]
+            encoder1layers.append(gl.LayersDict[layername](**(l["params"])))
+        self.encoder1 = nn.ModuleList(encoder1layers)
+        # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
+        Nin = self.encoder1[-2].out_features  # I need to sophisticate this part.
+        self.encoder1_mean = nn.Linear(Nin, self.Nhid)
+        self.encoder1_logvar = nn.Linear(Nin, self.Nhid)
+        ######################################################################################################
+
+        ##### Encoder 2 convolutional layers #################################################################
+        encoder2convlayers = []
+        for l in netstructure["Encoder2 convolutional"]:
+            layername = l["lname"]
+            encoder2convlayers.append(gl.LayersDict[layername](**(l["params"])))
+        self.encoder2conv = nn.ModuleList(encoder2convlayers)
+        # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
+        #######################################################################################################
+
+        ##### Encoder 2 fully-connected layers ################################################################
+        encoder2linearlayers = []
+        for l in netstructure["Encoder2 fully connected"]:
+            layername = l["lname"]
+            encoder2linearlayers.append(gl.LayersDict[layername](**(l["params"])))
+        self.encoder2linear = nn.ModuleList(encoder2linearlayers)
+        # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
+        Nin = self.encoder2linear[-2].out_features  # I need to sophisticate this part.
+        self.encoder2_mean = nn.Linear(Nin, self.Nhid)
+        self.encoder2_logvar = nn.Linear(Nin, self.Nhid)
+        #######################################################################################################
+
+        ##### Decoder convolutional layers ####################################################################
+        decoderconvlayers = []
+        for l in netstructure["Decoder convolutional"]:
+            layername = l["lname"]
+            decoderconvlayers.append(gl.LayersDict[layername](**(l["params"])))
+        self.decoderconv = nn.ModuleList(decoderconvlayers)
+        #########################################################################################################
+
+        ##### Decoder fully-connected layers ####################################################################
+        decoderlinearlayers = []
+        for l in netstructure["Decoder fully connected"]:
+            layername = l["lname"]
+            decoderlinearlayers.append(gl.LayersDict[layername](**(l["params"])))
+        self.decoderlinear = nn.ModuleList(decoderlinearlayers)
+        Nin = self.decoderlinear[-2].out_features  # I need to sophisticated this part.
+        self.decoder_mean = nn.Linear(Nin, self.Nout)
+        self.decoder_logvar = nn.Linear(Nin, self.Nout)
+        #########################################################################################################
+
+
+    # Encode 1
+    def encode1(self, x):
+        ##### Encode to mean and log variance ###################################################################
+        for l in self.encoder1:
+            x = l(x)
+        mu = self.encoder1_mean(x)
+        logvar = self.encoder1_logvar(x)
+        return mu, logvar
+        #########################################################################################################
+
+    # Encode 2
+    def encode2(self, x, label):
+        ##### Stack x and label ##############################
+        y = torch.cat([x, label], dim=-1)
+        y.retain_grad()
+        ######################################################
+        ##### Encode to mean and log variance ################
+        for l in self.encoder2conv:
+            y = l(y)
+        #######################################################
+        ##### Fully connected layers ##########################
+        for l in self.encoder2linear:
+            y = l(y)
+        #######################################################
+        ##### Encoder to mean and log variance ################
+        mu = self.encoder2_mean(y)
+        logvar = self.encoder2_logvar(y)
+        return mu, logvar
+        #######################################################
+
+    # Decode
+    def decode(self, z, y):
+        ##### Concate z and y #################################
+        y = torch.cat([y,z], dim=1)
+        y.retain_grad()
+        #######################################################
+        ##### Convolutional layers ############################
+        for l in self.decoderconv:
+            y = l(y)
+        #######################################################
+        ##### Fully-connected layers ##########################
+        for l in self.decoderlinear:
+            y = l(y)
+        mu = self.decoder_mean(y)
+        logvar = self.decoder_logvar(y)
+        #######################################################
+        return mu, logvar
+
+    # Forward calculation
+    def forward_training(self, y, label):
+        # Encode the input data into the posterior's parameters
+        mu1, logvar1 = self.encode1(y)
+        mu2, logvar2 = self.encode2(y, label)
+        # Sampling from the standard normal distribution and reparametrize.
+        eps = torch.randn_like(logvar2)
+        if self.cudaflg: eps = eps.cuda()
+        std2 = logvar2.mul(0.5).exp_()
+        z = eps.mul(std2).add_(mu2)
+        # Decode
+        mu_x, logvar_x = self.decode(z, y)
+        return mu_x, logvar_x, mu1, logvar1, mu2, logvar2
+
+    # prediction
+    def forward_prediction(self, y):
+        # Encode the input into the posterior's parameters
+        mu, logvar = self.encode1(y)        
+        # Sampling from the standard normal distribution and reparametrize.
+        eps = torch.randn_like(logvar)
+        if self.cudaflg: eps = eps.cuda()
+        std = logvar.mul(0.5).exp_()
+        z = eps.mul(std).add_(mu)
+        # Decode
+        mu_x, logvar_x = self.decode(z, y)
+        return mu_x, logvar_x, mu, logvar
+
+    # inference
+    def forward_inference(self, y, Nloop=1000):
+        """
+        Parameters
+        ------------------------------
+        y: torch.tensor
+            An input signal. The shape is (1, Ndata).
+        
+        Nloop: int
+            The number of samples to be sampled.
+            Default 1000
+
+        Returns
+        -------------------------------
+        outlist: numpy.ndarray
+            The samples. The shape is (Nloop, Npred), where Nphys is the number of dimensions of predicted parameters.
+        """
+
+        # Encode
+        mu, logvar = self.encode1(y)
+        std_enc = logvar.mul(0.5).exp_()
+        # Sampling from the standard normal distribution and reparametrize.
+        eps = torch.empty((Nloop, self.Nhid)).normal_(0.0, 1.0)
+        if self.cudaflg: eps = eps.cuda()
+        z = eps.mul(std_enc).add_(mu)
+        # Decode
+        mu_x, logvar_x = self.decode(z, torch.tile(y, dims=(Nloop, 1)))
+        # Random sampling
+        eps = torch.randn_like(mu_x)
+        if self.cudaflg: eps = eps.cuda()
+        std_dec = logvar_x.mul(0.5).exp_()
+        pred = eps.mul(std_dec).add_(mu_x)
+        if self.cudaflg:
+            pred = pred.cpu()
+        """
+        if 'outlist' in locals():
+            outlist = np.vstack((outlist, pred.detach().numpy()))
+        else:
+            outlist = pred.detach().numpy()
+        """
+        return pred
+
+    def _get_output_of_encoder(self, y):
+        # Encode the input into the posterior's parameters
+        mu, logvar = self.encode1(y)        
+        return mu, logvar
+
+
+
 """
-CVAE class is old style.
+CVAE class is implemented in an old manner.
 Its structure is specified in a different manner from the current style.
 But it's still useful.
 For specification, please see `example/CVAEtutorial.ipynb`.
@@ -200,7 +397,7 @@ class CVAE(nn.Module):
 
         print("TSYNet.py: Neural network is successfully initialized.")
 
-      
+
     def encode_1(self, y):
         '''
         Encode module 1
@@ -273,7 +470,7 @@ class CVAE(nn.Module):
         y : torch.tensor
             The compressed GW signal using self.conv_compresser
 
-       '''
+        '''
 
         y = torch.cat([y,z], dim=1)
         y.retain_grad()
@@ -301,7 +498,6 @@ class CVAE(nn.Module):
         mu_x, logvar_x = self.decode(z, y)
 
         return mu_x, logvar_x, mu1, logvar1, mu2, logvar2
-       
 
 
     def forward_prediction(self, y):
