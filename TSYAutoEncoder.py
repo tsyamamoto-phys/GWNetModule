@@ -176,20 +176,12 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         #######################################################################################################
 
         ##### Decoder convolutional layers ####################################################################
-        decoderconvlayers = []
-        for l in netstructure["Decoder convolutional"]:
+        decoderlayers = []
+        for l in netstructure["Decoder"]:
             layername = l["lname"]
-            decoderconvlayers.append(gl.LayersDict[layername](**(l["params"])))
-        self.decoderconv = nn.ModuleList(decoderconvlayers)
-        #########################################################################################################
-
-        ##### Decoder fully-connected layers ####################################################################
-        decoderlinearlayers = []
-        for l in netstructure["Decoder fully connected"]:
-            layername = l["lname"]
-            decoderlinearlayers.append(gl.LayersDict[layername](**(l["params"])))
-        self.decoderlinear = nn.ModuleList(decoderlinearlayers)
-        Nin = self.decoderlinear[-2].out_features  # I need to sophisticated this part.
+            decoderlayers.append(gl.LayersDict[layername](**(l["params"])))
+        self.decoder = nn.ModuleList(decoderlayers)
+        Nin = self.decoder[-2].out_features  # I need to sophisticated this part.
         self.decoder_mean = nn.Linear(Nin, self.Nout)
         self.decoder_logvar = nn.Linear(Nin, self.Nout)
         #########################################################################################################
@@ -207,13 +199,13 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
 
     # Encode 2
     def encode2(self, x, label):
-        ##### Stack x and label ##############################
+        ##### Convolutional layers ############################
+        for l in self.encoder2conv:
+            x = l(x)
+        #######################################################
+        ##### Stack x and label ###############################
         y = torch.cat([x, label], dim=-1)
         y.retain_grad()
-        ######################################################
-        ##### Encode to mean and log variance ################
-        for l in self.encoder2conv:
-            y = l(y)
         #######################################################
         ##### Fully connected layers ##########################
         for l in self.encoder2linear:
@@ -231,17 +223,13 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         y = torch.cat([y,z], dim=1)
         y.retain_grad()
         #######################################################
-        ##### Convolutional layers ############################
-        for l in self.decoderconv:
-            y = l(y)
-        #######################################################
-        ##### Fully-connected layers ##########################
-        for l in self.decoderlinear:
+        ##### Get mean and log variance #######################
+        for l in self.decoder:
             y = l(y)
         mu = self.decoder_mean(y)
         logvar = self.decoder_logvar(y)
-        #######################################################
         return mu, logvar
+        #######################################################
 
     # Forward calculation
     def forward_training(self, y, label):
