@@ -210,7 +210,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         #######################################################
         ##### Stack x and label ###############################
         y = torch.cat([x, label], dim=-1)
-        y.retain_grad()
+        if y.requires_grad: y.retain_grad()
         #######################################################
         ##### Fully connected layers ##########################
         for l in self.encoder2linear:
@@ -230,7 +230,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         #######################################################
         ##### Concate z and y #################################
         y = torch.cat([y,z], dim=1)
-        y.retain_grad()
+        if y.requires_grad: y.retain_grad()
         #######################################################
         ##### Get mean and log variance #######################
         for l in self.decoderlinear:
