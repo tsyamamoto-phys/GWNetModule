@@ -160,7 +160,6 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
             layername = l["lname"]
             encoder2convlayers.append(gl.LayersDict[layername](**(l["params"])))
         self.encoder2conv = nn.ModuleList(encoder2convlayers)
-        # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
         #######################################################################################################
 
         ##### Encoder 2 fully-connected layers ################################################################
@@ -174,14 +173,20 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         self.encoder2_mean = nn.Linear(Nin, self.Nhid)
         self.encoder2_logvar = nn.Linear(Nin, self.Nhid)
         #######################################################################################################
-
         ##### Decoder convolutional layers ####################################################################
-        decoderlayers = []
-        for l in netstructure["Decoder"]:
+        decoderconvlayers = []
+        for l in netstructure["Decoder convolutional"]:
             layername = l["lname"]
-            decoderlayers.append(gl.LayersDict[layername](**(l["params"])))
-        self.decoder = nn.ModuleList(decoderlayers)
-        Nin = self.decoder[-2].out_features  # I need to sophisticated this part.
+            decoderconvlayers.append(gl.LayersDict[layername](**(l["params"])))
+        self.decoderconv = nn.ModuleList(decoderconvlayers)
+        #######################################################################################################
+        ##### Decoder fully connected layers ##################################################################
+        decoderlinearlayers = []
+        for l in netstructure["Decoder fully connected"]:
+            layername = l["lname"]
+            decoderlinearlayers.append(gl.LayersDict[layername](**(l["params"])))
+        self.decoderlinear = nn.ModuleList(decoderlinearlayers)
+        Nin = self.decoderlinear[-2].out_features  # I need to sophisticated this part.
         self.decoder_mean = nn.Linear(Nin, self.Nout)
         self.decoder_logvar = nn.Linear(Nin, self.Nout)
         #########################################################################################################
@@ -219,12 +224,16 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
 
     # Decode
     def decode(self, z, y):
+        ##### Convolutional layers ############################
+        for l in self.decoderconv:
+            y = l(y)
+        #######################################################
         ##### Concate z and y #################################
         y = torch.cat([y,z], dim=1)
         y.retain_grad()
         #######################################################
         ##### Get mean and log variance #######################
-        for l in self.decoder:
+        for l in self.decoderlinear:
             y = l(y)
         mu = self.decoder_mean(y)
         logvar = self.decoder_logvar(y)
