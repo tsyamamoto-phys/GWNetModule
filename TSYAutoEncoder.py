@@ -273,7 +273,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         Parameters
         ------------------------------
         y: torch.tensor
-            An input signal. The shape is (1, Ndata).
+            An input signal. The shape is (1, Nchannel, Ndata).
         
         Nloop: int
             The number of samples to be sampled.
@@ -293,7 +293,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         if self.cudaflg: eps = eps.cuda()
         z = eps.mul(std_enc).add_(mu)
         # Decode
-        mu_x, logvar_x = self.decode(z, torch.tile(y, dims=(Nloop, 1)))
+        mu_x, logvar_x = self.decode(z, torch.tile(y, dims=(Nloop, 1, 1)))
         # Random sampling
         eps = torch.randn_like(mu_x)
         if self.cudaflg: eps = eps.cuda()
