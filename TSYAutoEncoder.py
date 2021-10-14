@@ -59,7 +59,7 @@ class TSYAutoEncoder(nn.Module):
 
 class TSYVariationalAutoEncoder(nn.Module):
 
-    def __init__(self, netstructure, cudaflg = False):
+    def __init__(self, netstructure, cudaflg=False):
         super(TSYVariationalAutoEncoder, self).__init__()
 
         self.cudaflg = cudaflg
@@ -125,7 +125,7 @@ class TSYVariationalAutoEncoder(nn.Module):
 
 class TSYConditionalVariationalAutoEncoder(nn.Module):
 
-    def __init__(self, netstructure, cudaflg = False):
+    def __init__(self, netstructure, cudaflg=False):
         super(TSYConditionalVariationalAutoEncoder, self).__init__()
 
         # Check cuda
