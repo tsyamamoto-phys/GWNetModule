@@ -125,11 +125,12 @@ class TSYVariationalAutoEncoder(nn.Module):
 
 class TSYConditionalVariationalAutoEncoder(nn.Module):
 
-    def __init__(self, netstructure, cudaflg=False):
+    def __init__(self, netstructure, cudaflg=False, device=None):
         super(TSYConditionalVariationalAutoEncoder, self).__init__()
 
         # Check cuda
         self.cudaflg = cudaflg
+        self.gpudevice = device
         # Check net structure
         if isinstance(netstructure, str):
             with open(netstructure, "r") as f:
@@ -247,7 +248,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         mu2, logvar2 = self.encode2(y, label)
         # Sampling from the standard normal distribution and reparametrize.
         eps = torch.randn_like(logvar2)
-        if self.cudaflg: eps = eps.cuda()
+        if self.cudaflg: eps = eps.cuda(self.gpudevice)
         std2 = logvar2.mul(0.5).exp_()
         z = eps.mul(std2).add_(mu2)
         # Decode
@@ -260,7 +261,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         mu, logvar = self.encode1(y)        
         # Sampling from the standard normal distribution and reparametrize.
         eps = torch.randn_like(logvar)
-        if self.cudaflg: eps = eps.cuda()
+        if self.cudaflg: eps = eps.cuda(self.gpudevice)
         std = logvar.mul(0.5).exp_()
         z = eps.mul(std).add_(mu)
         # Decode
@@ -290,13 +291,13 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         std_enc = logvar.mul(0.5).exp_()
         # Sampling from the standard normal distribution and reparametrize.
         eps = torch.empty((Nloop, self.Nhid)).normal_(0.0, 1.0)
-        if self.cudaflg: eps = eps.cuda()
+        if self.cudaflg: eps = eps.cuda(self.gpudevice)
         z = eps.mul(std_enc).add_(mu)
         # Decode
         mu_x, logvar_x = self.decode(z, torch.tile(y, dims=(Nloop, 1, 1)))
         # Random sampling
         eps = torch.randn_like(mu_x)
-        if self.cudaflg: eps = eps.cuda()
+        if self.cudaflg: eps = eps.cuda(self.gpudevice)
         std_dec = logvar_x.mul(0.5).exp_()
         pred = eps.mul(std_dec).add_(mu_x)
         if self.cudaflg:
