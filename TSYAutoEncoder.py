@@ -269,7 +269,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         return mu_x, logvar_x, mu, logvar
 
     # inference
-    def forward_inference(self, y, Nloop=1000):
+    def forward_inference(self, y, Nloop=1000, Nbatch=None):
         """
         Parameters
         ------------------------------
@@ -280,35 +280,47 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
             The number of samples to be sampled.
             Default 1000
 
+        Nbatch: int
+            The batch size. If it is None, Nbatch=Nloop.
+            Default for None.
+
         Returns
         -------------------------------
         outlist: numpy.ndarray
             The samples. The shape is (Nloop, Npred), where Nphys is the number of dimensions of predicted parameters.
         """
 
+        if Nbatch is None: Nbatch = Nloop
+        kbatch = Nloop // Nbatch
+        Nsize = kbatch * Nbatch
+        predlist = torch.empty((Nsize, self.Nout))
+
         # Encode
         mu, logvar = self.encode1(y)
+        ytiled = torch.tile(y, dims=(Nbatch, 1, 1))
         std_enc = logvar.mul(0.5).exp_()
-        # Sampling from the standard normal distribution and reparametrize.
-        eps = torch.empty((Nloop, self.Nhid)).normal_(0.0, 1.0)
-        if self.cudaflg: eps = eps.cuda(self.gpudevice)
-        z = eps.mul(std_enc).add_(mu)
-        # Decode
-        mu_x, logvar_x = self.decode(z, torch.tile(y, dims=(Nloop, 1, 1)))
-        # Random sampling
-        eps = torch.randn_like(mu_x)
-        if self.cudaflg: eps = eps.cuda(self.gpudevice)
-        std_dec = logvar_x.mul(0.5).exp_()
-        pred = eps.mul(std_dec).add_(mu_x)
-        if self.cudaflg:
-            pred = pred.cpu()
-        """
-        if 'outlist' in locals():
-            outlist = np.vstack((outlist, pred.detach().numpy()))
-        else:
-            outlist = pred.detach().numpy()
-        """
-        return pred
+        for k in range(kbatch):
+            # Sampling from the standard normal distribution and reparametrize.
+            eps = torch.empty((Nbatch, self.Nhid)).normal_(0.0, 1.0)
+            if self.cudaflg: eps = eps.cuda(self.gpudevice)
+            z = eps.mul(std_enc).add_(mu)
+            # Decode
+            mu_x, logvar_x = self.decode(z, ytiled)
+            # Random sampling
+            eps = torch.randn_like(mu_x)
+            if self.cudaflg: eps = eps.cuda(self.gpudevice)
+            std_dec = logvar_x.mul(0.5).exp_()
+            pred = eps.mul(std_dec).add_(mu_x)
+            if self.cudaflg:
+                predlist[k * Nbatch : (k+1) * Nbatch] = pred.cpu()
+
+            """
+            if 'outlist' in locals():
+                outlist = np.vstack((outlist, pred.detach().numpy()))
+            else:
+                outlist = pred.detach().numpy()
+            """
+        return predlist
 
     def _get_output_of_encoder(self, y):
         # Encode the input into the posterior's parameters
@@ -586,7 +598,7 @@ if __name__ == "__main__":
     import json
 
     params = "testconfig.json"
-    net = TSYVariationalAutoEncoder(params)
+    net = TSYConditionalVariationalAutoEncoder(params)
     print("net is defined.")
     summary(net, inputsize=(1,2,1000))
 
