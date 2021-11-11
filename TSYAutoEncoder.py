@@ -390,14 +390,14 @@ class CVAE(nn.Module):
         self.encoder1 = nn.ModuleList(encode1_layers)
         self.encoder1_mu = nn.Linear(self.enc1_params[self.N_enc1_layer-1], self.hidden_features)
         self.encoder1_logvar = nn.Linear(self.enc1_params[self.N_enc1_layer-1], self.hidden_features)
- 
+
         encode2_layers.append(nn.Linear(self.in_features + self.phys_features, self.enc2_params[0]))
         for i in range(self.N_enc2_layer - 1):
             encode2_layers.append(nn.Linear(self.enc2_params[i], self.enc2_params[i+1]))
         self.encoder2 = nn.ModuleList(encode2_layers)           
         self.encoder2_mu = nn.Linear(self.enc2_params[self.N_enc2_layer-1], self.hidden_features)
         self.encoder2_logvar = nn.Linear(self.enc2_params[self.N_enc2_layer-1], self.hidden_features)
- 
+
         decode_layers.append(nn.Linear(self.hidden_features + self.in_features, self.dec_params[0]))
         for i in range(self.N_dec_layer - 1):
             decode_layers.append(nn.Linear(self.dec_params[i], self.dec_params[i+1]))
