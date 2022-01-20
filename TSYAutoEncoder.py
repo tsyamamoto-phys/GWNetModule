@@ -294,10 +294,12 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         kbatch = Nloop // Nbatch
         Nsize = kbatch * Nbatch
         predlist = torch.empty((Nsize, self.Nout))
-
+        ydim = len(y.size()) - 1
+        dims = [Nbatch]
+        for _ in range(ydim): dims.append(1)
         # Encode
         mu, logvar = self.encode1(y)
-        ytiled = torch.tile(y, dims=(Nbatch, 1, 1))
+        ytiled = torch.tile(y, dims=dims)
         std_enc = logvar.mul(0.5).exp_()
         for k in range(kbatch):
             # Sampling from the standard normal distribution and reparametrize.
