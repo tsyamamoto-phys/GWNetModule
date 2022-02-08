@@ -52,5 +52,3 @@ class CVAE_LogP(nn.Module):
         neg_logp = logvar + (mu - label)**2.0 / var + np.log(2.0*np.pi)
         
         return torch.mean( neg_logp.sum(dim=1) ) / 2.0
-    
-
