@@ -58,7 +58,7 @@ class CVAE_LogP_TruncatedGaussian(nn.Module):
     logarithm of truncated Gaussian distribution
     """
     def __init__(self, a):
-        super(CVAE_LogP, self).__init__()
+        super(CVAE_LogP_TruncatedGaussian, self).__init__()
         self.a = a
 
     def forward(self, mu, logvar, label):
