@@ -41,7 +41,6 @@ class CVAE_KLDiv(nn.Module):
         return torch.mean(kl_div.sum(dim=1) / 2.0)
 
 
-
 class CVAE_LogP(nn.Module):
     def __init__(self):
         super(CVAE_LogP, self).__init__()
@@ -52,3 +51,20 @@ class CVAE_LogP(nn.Module):
         neg_logp = logvar + (mu - label)**2.0 / var + np.log(2.0*np.pi)
         
         return torch.mean( neg_logp.sum(dim=1) ) / 2.0
+
+
+class CVAE_LogP_TruncatedGaussian(nn.Module):
+    """
+    logarithm of truncated Gaussian distribution
+    """
+    def __init__(self, a):
+        super(CVAE_LogP, self).__init__()
+        self.a = a
+
+    def forward(self, mu, logvar, label):
+
+        var = logvar.exp()
+        neg_logp_Gaussian = logvar + (mu - label)**2.0 / var + np.log(2.0*np.pi)
+        neg_logp_erfterm = torch.log( 0.5 - 0.5 * torch.erf((self.a - mu) / torch.sqrt(2.0 * var)) )
+        
+        return torch.mean( (neg_logp_erfterm + neg_logp_Gaussian).sum(dim=1) ) / 2.0
