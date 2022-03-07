@@ -35,6 +35,7 @@ class GenerateLayer():
         self.LayersDict["maxpool2d"] = nn.MaxPool2d
         self.LayersDict["avgpool2d"] = nn.AvgPool2d
         self.LayersDict["relu"] = nn.ReLU
+        self.LayersDict["leaky relu"] = nn.LeakyReLU
         self.LayersDict["upsample"] = nn.Upsample
         self.LayersDict["convtranspose1d"] = nn.ConvTranspose1d
         self.LayersDict["flatten"] = nn.Flatten
