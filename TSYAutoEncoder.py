@@ -125,7 +125,7 @@ class TSYVariationalAutoEncoder(nn.Module):
 
 class TSYConditionalVariationalAutoEncoder(nn.Module):
 
-    def __init__(self, netstructure, cudaflg=False, device=None):
+    def __init__(self, netstructure, cudaflg=False, device=None, kidx=-2):
         super(TSYConditionalVariationalAutoEncoder, self).__init__()
 
         # Check cuda
@@ -150,7 +150,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
             encoder1layers.append(gl.LayersDict[layername](**(l["params"])))
         self.encoder1 = nn.ModuleList(encoder1layers)
         # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
-        Nin = self.encoder1[-2].out_features  # I need to sophisticate this part.
+        Nin = self.encoder1[kidx].out_features  # I need to sophisticate this part.
         self.encoder1_mean = nn.Linear(Nin, self.Nhid)
         self.encoder1_logvar = nn.Linear(Nin, self.Nhid)
         ######################################################################################################
@@ -170,7 +170,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
             encoder2linearlayers.append(gl.LayersDict[layername](**(l["params"])))
         self.encoder2linear = nn.ModuleList(encoder2linearlayers)
         # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
-        Nin = self.encoder2linear[-2].out_features  # I need to sophisticate this part.
+        Nin = self.encoder2linear[kidx].out_features  # I need to sophisticate this part.
         self.encoder2_mean = nn.Linear(Nin, self.Nhid)
         self.encoder2_logvar = nn.Linear(Nin, self.Nhid)
         #######################################################################################################
@@ -187,7 +187,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
             layername = l["lname"]
             decoderlinearlayers.append(gl.LayersDict[layername](**(l["params"])))
         self.decoderlinear = nn.ModuleList(decoderlinearlayers)
-        Nin = self.decoderlinear[-2].out_features  # I need to sophisticated this part.
+        Nin = self.decoderlinear[kidx].out_features  # I need to sophisticated this part.
         self.decoder_mean = nn.Linear(Nin, self.Nout)
         self.decoder_logvar = nn.Linear(Nin, self.Nout)
         #########################################################################################################
