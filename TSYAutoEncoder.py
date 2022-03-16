@@ -205,9 +205,11 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
 
     # Encode 2
     def encode2(self, x, label):
+        outputlist = []
         ##### Convolutional layers ############################
         for l in self.encoder2conv:
             x = l(x)
+            outputlist.append(x)
         #######################################################
         ##### Stack x and label ###############################
         y = torch.cat([x, label], dim=-1)
@@ -216,11 +218,12 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         ##### Fully connected layers ##########################
         for l in self.encoder2linear:
             y = l(y)
+            outputlist.append(y)
         #######################################################
         ##### Encoder to mean and log variance ################
         mu = self.encoder2_mean(y)
         logvar = self.encoder2_logvar(y)
-        return mu, logvar
+        return mu, logvar, outputlist
         #######################################################
 
     # Decode
