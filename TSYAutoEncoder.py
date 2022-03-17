@@ -333,6 +333,211 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         return mu, logvar
 
 
+    
+    
+class TSYConditionalVariationalAutoEncoder_SharedConvolutionalLayers(nn.Module):
+
+    def __init__(self, netstructure, cudaflg=False, device=None, kidx=-2):
+        super(TSYConditionalVariationalAutoEncoder_SharedConvolutionalLayers, self).__init__()
+
+        # Check cuda
+        self.cudaflg = cudaflg
+        self.gpudevice = device
+        # Check net structure
+        if isinstance(netstructure, str):
+            with open(netstructure, "r") as f:
+                print(f"net structure is loaded from `{netstructure}`")
+                netstructure = json.load(f)
+        # Prepare layer generator
+        gl = u.GenerateLayer()
+
+        # parameters
+        self.Nhid = netstructure["Dimension of hidden variable"]
+        self.Nout = netstructure["Dimension of output"]
+
+        ##### Convolutional layers (shared)#####################################################################
+        convlayers = []
+        for l in netstructure["Convolutional"]:
+            layername = l["lname"]
+            convlayers.append(gl.LayersDict[layername](**(l["params"])))
+        convlayers.append(nn.Flatten())
+        self.convlayers = nn.ModuleList(convlayers)
+        ########################################################################################################
+        
+        ##### Prior ############################################################################################
+        priorlayers = []
+        for l in netstructure["Prior"]:
+            layername = l["lname"]
+            priorlayers.append(gl.LayersDict[layername](**(l["params"])))
+        self.priorlayers = nn.ModuleList(priorlayers)
+        # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
+        Nin = self.priorlayers[kidx].out_features  # I need to sophisticate this part.
+        self.prior_mean = nn.Linear(Nin, self.Nhid)
+        self.prior_logvar = nn.Linear(Nin, self.Nhid)
+        #######################################################################################################
+
+        ##### Recognition ################################################################
+        recognitionlayers = []
+        for l in netstructure["Recognition"]:
+            layername = l["lname"]
+            recognitionlayers.append(gl.LayersDict[layername](**(l["params"])))
+        self.recognitionlayers = nn.ModuleList(recognitionlinearlayers)
+        # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
+        Nin = self.recognitionlayers[kidx].out_features  # I need to sophisticate this part.
+        self.recognition_mean = nn.Linear(Nin, self.Nhid)
+        self.recognition_logvar = nn.Linear(Nin, self.Nhid)
+        #######################################################################################################
+
+        ##### Generator #######################################################################################
+        generatorlayers = []
+        for l in netstructure["Generator"]:
+            layername = l["lname"]
+            generatorlayers.append(gl.LayersDict[layername](**(l["params"])))
+        self.generatorlayers = nn.ModuleList(decoderconvlayers)
+        Nin = self.generatorlayers[kidx].out_features  # I need to sophisticated this part.
+        self.generator_mean = nn.Linear(Nin, self.Nout)
+        self.generator_logvar = nn.Linear(Nin, self.Nout)
+        ########################################################################################################
+
+        
+    # Convolution and Flattening
+    def convolution(self, x):
+        for l in self.conv:
+            x = l(x)
+        return x 
+    
+    # prior
+    def prior(self, x):
+        # forward calculation
+        for l in self.priorlayers:
+            x = l(x)
+        mu = self.prior_mean(x)
+        logvar = self.prior_logvar(x)
+        return mu, logvar
+
+    # recognition
+    def recognition(self, x, label):
+        # Stack strain and label
+        y = torch.cat([x, label], dim=-1)
+        if y.requires_grad: y.retain_grad()
+        # forward calculation
+        for l in self.recognitionlayers:
+            y = l(y)
+        mu = self.recognition_mean(y)
+        logvar = self.recognition_logvar(y)
+        return mu, logvar
+
+    # generator
+    def generator(self, z, y):
+        # Stack strain and latent variables
+        y = torch.cat([y,z], dim=1)
+        if y.requires_grad: y.retain_grad()
+        # forward calculation
+        for l in self.generatorlayers:
+            y = l(y)
+        mu = self.generator_mean(y)
+        logvar = self.generator_logvar(y)
+        return mu, logvar
+
+    # Forward calculation
+    def forward_training(self, y, label):
+        # convolution and flattening
+        y = self.convolution(y)
+        # Encode the input data into the posterior's parameters
+        mu1, logvar1 = self.prior(y)
+        mu2, logvar2 = self.recognition(y, label)
+        # Sampling from the standard normal distribution and reparametrize.
+        eps = torch.randn_like(logvar2)
+        if self.cudaflg: eps = eps.cuda(self.gpudevice)
+        std2 = logvar2.mul(0.5).exp_()
+        z = eps.mul(std2).add_(mu2)
+        # Decode
+        mu_x, logvar_x = self.generator(z, y)
+        return mu_x, logvar_x, mu1, logvar1, mu2, logvar2
+
+    # prediction
+    def forward_prediction(self, y):
+        # convolution and flattening 
+        y = self.convolution(y)
+        # Encode the input into the posterior's parameters
+        mu, logvar = self.prior(y)        
+        # Sampling from the standard normal distribution and reparametrize.
+        eps = torch.randn_like(logvar)
+        if self.cudaflg: eps = eps.cuda(self.gpudevice)
+        std = logvar.mul(0.5).exp_()
+        z = eps.mul(std).add_(mu)
+        # Decode
+        mu_x, logvar_x = self.generator(z, y)
+        return mu_x, logvar_x, mu, logvar
+
+    # inference
+    def forward_inference(self, y, Nloop=1000, Nbatch=None):
+        """
+        Parameters
+        ------------------------------
+        y: torch.tensor
+            An input signal. The shape is (1, Nchannel, Ndata).
+        
+        Nloop: int
+            The number of samples to be sampled.
+            Default 1000
+
+        Nbatch: int
+            The batch size. If it is None, Nbatch=Nloop.
+            Default for None.
+
+        Returns
+        -------------------------------
+        outlist: numpy.ndarray
+            The samples. The shape is (Nloop, Npred), where Nphys is the number of dimensions of predicted parameters.
+        """
+
+        if Nbatch is None: Nbatch = Nloop
+        kbatch = Nloop // Nbatch
+        Nsize = kbatch * Nbatch
+        predlist = torch.empty((Nsize, self.Nout))
+        ydim = len(y.size()) - 1
+        dims = [Nbatch]
+        for _ in range(ydim): dims.append(1)
+        # Convolution
+        y = self.convolution(y)
+        # Encode
+        mu, logvar = self.prior(y)
+        ytiled = torch.tile(y, dims=dims)
+        std_enc = logvar.mul(0.5).exp_()
+        for k in range(kbatch):
+            # Sampling from the standard normal distribution and reparametrize.
+            eps = torch.empty((Nbatch, self.Nhid)).normal_(0.0, 1.0)
+            if self.cudaflg: eps = eps.cuda(self.gpudevice)
+            z = eps.mul(std_enc).add_(mu)
+            # Decode
+            mu_x, logvar_x = self.generator(z, ytiled)
+            # Random sampling
+            eps = torch.randn_like(mu_x)
+            if self.cudaflg: eps = eps.cuda(self.gpudevice)
+            std_dec = logvar_x.mul(0.5).exp_()
+            pred = eps.mul(std_dec).add_(mu_x)
+            if self.cudaflg:
+                predlist[k * Nbatch : (k+1) * Nbatch] = pred.cpu()
+
+            """
+            if 'outlist' in locals():
+                outlist = np.vstack((outlist, pred.detach().numpy()))
+            else:
+                outlist = pred.detach().numpy()
+            """
+        return predlist
+
+    def _get_output_of_encoder(self, y):
+        # convolution and flattening
+        y = self.convolution(y)
+        # Encode the input into the posterior's parameters
+        mu, logvar = self.prior(y)        
+        return mu, logvar
+
+    
+    
+    
 
 """
 CVAE class is implemented in an old manner.
