@@ -40,6 +40,7 @@ class GenerateLayer():
         self.LayersDict["leaky relu"] = nn.LeakyReLU
         self.LayersDict["negative relu"] = TSYLayers.TSYNegativeReLU
         self.LayersDict["sigmoid"] = nn.Sigmoid
+        self.LayersDict["tanh"] = nn.Tanh
         # Deconvolution
         self.LayersDict["upsample"] = nn.Upsample
         self.LayersDict["convtranspose1d"] = nn.ConvTranspose1d
