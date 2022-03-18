@@ -505,6 +505,8 @@ class TSYConditionalVariationalAutoEncoder_SharedConvolutionalLayers(nn.Module):
         mu, logvar = self.prior(y)
         ytiled = torch.tile(y, dims=dims)
         std_enc = logvar.mul(0.5).exp_()
+        flatten = nn.Flatten()
+        ytiled = flatten(ytiled)
         for k in range(kbatch):
             # Sampling from the standard normal distribution and reparametrize.
             eps = torch.empty((Nbatch, self.Nhid)).normal_(0.0, 1.0)
