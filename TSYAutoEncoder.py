@@ -371,9 +371,18 @@ class TSYConditionalVariationalAutoEncoder_SharedConvolutionalLayers(nn.Module):
             priorlayers.append(gl.LayersDict[layername](**(l["params"])))
         self.priorlayers = nn.ModuleList(priorlayers)
         # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
-        Nin = self.priorlayers[kidx].out_features  # I need to sophisticate this part.
-        self.prior_mean = nn.Linear(Nin, self.Nhid)
-        self.prior_logvar = nn.Linear(Nin, self.Nhid)
+        # prior output: mean
+        priormu_layers = []
+        for l in netstructure["Prior mean"]:
+            layername = l["lname"]
+            priormu_layers.append(gl.LayersDict[layername](**(l["params"])))
+        self.priormu_layers = nn.ModuleList(priormu_layers)
+        # prior output: logvar
+        priorlogvar_layers = []
+        for l in netstructure["Prior logvar"]:
+            layername = l["lname"]
+            priorlogvar_layers.append(gl.LayersDict[layername](**(l["params"])))
+        self.priorlogvar_layers = nn.ModuleList(priorlogvar_layers)
         #######################################################################################################
 
         ##### Recognition ################################################################
@@ -383,9 +392,18 @@ class TSYConditionalVariationalAutoEncoder_SharedConvolutionalLayers(nn.Module):
             recognitionlayers.append(gl.LayersDict[layername](**(l["params"])))
         self.recognitionlayers = nn.ModuleList(recognitionlayers)
         # output of Encoder should be divided into a mean and a variance of a Gaussian distribution.
-        Nin = self.recognitionlayers[kidx].out_features  # I need to sophisticate this part.
-        self.recognition_mean = nn.Linear(Nin, self.Nhid)
-        self.recognition_logvar = nn.Linear(Nin, self.Nhid)
+        # recognition output: mean
+        recognitionmu_layers = []
+        for l in netstructure["Recognition mean"]:
+            layername = l["lname"]
+            recognitionmu_layers.append(gl.LayersDict[layername](**(l["params"])))
+        self.recognitionmu_layers = nn.ModuleList(recognitionmu_layers)
+        # recognition output: logvar
+        recognitionlogvar_layers = []
+        for l in netstructure["Recognition logvar"]:
+            layername = l["lname"]
+            recognitionlogvar_layers.append(gl.LayersDict[layername](**(l["params"])))
+        self.recognitionlogvar_layers = nn.ModuleList(recognitionlogvar_layers)
         #######################################################################################################
 
         ##### Generator #######################################################################################
@@ -394,12 +412,50 @@ class TSYConditionalVariationalAutoEncoder_SharedConvolutionalLayers(nn.Module):
             layername = l["lname"]
             generatorlayers.append(gl.LayersDict[layername](**(l["params"])))
         self.generatorlayers = nn.ModuleList(generatorlayers)
-        Nin = self.generatorlayers[kidx].out_features  # I need to sophisticated this part.
-        self.generator_mean = nn.Linear(Nin, self.Nout)
-        self.generator_logvar = nn.Linear(Nin, self.Nout)
+        # generator output: mean
+        generatormu_layers = []
+        for l in netstructure["Generator mean"]:
+            layername = l["lname"]
+            generatormu_layers.append(gl.LayersDict[layername](**(l["params"])))
+        self.generatormu_layers = nn.ModuleList(generatormu_layers)
+        # generator output: logvar
+        generatorlogvar_layers = []
+        for l in netstructure["Generator logvar"]:
+            layername = l["lname"]
+            generatorlogvar_layers.append(gl.LayersDict[layername](**(l["params"])))
+        self.generatorlogvar_layers = nn.ModuleList(generatorlogvar_layers)
         ########################################################################################################
+ 
+    def _prior_mean(self, x):
+        for l in self.priormu_layers:
+            x = l(x)
+        return x
 
-        
+    def _prior_logvar(self, x):
+        for l in self.priorlogvar_layers:
+            x = l(x)
+        return x
+
+    def _recognition_mean(self, x):
+        for l in self.recognitionmu_layers:
+            x = l(x)
+        return x
+
+    def _recognition_logvar(self, x):
+        for l in self.recognitionlogvar_layers:
+            x = l(x)
+        return x
+
+    def _generator_mean(self, x):
+        for l in self.generatormu_layers:
+            x = l(x)
+        return x
+
+    def _generator_logvar(self, x):
+        for l in self.generatorlogvar_layers:
+            x = l(x)
+        return x
+            
     # Convolution and Flattening
     def convolution(self, x):
         for l in self.convlayers:
@@ -411,8 +467,8 @@ class TSYConditionalVariationalAutoEncoder_SharedConvolutionalLayers(nn.Module):
         # forward calculation
         for l in self.priorlayers:
             x = l(x)
-        mu = self.prior_mean(x)
-        logvar = self.prior_logvar(x)
+        mu = self._prior_mean(x)
+        logvar = self._prior_logvar(x)
         return mu, logvar
 
     # recognition
@@ -423,8 +479,8 @@ class TSYConditionalVariationalAutoEncoder_SharedConvolutionalLayers(nn.Module):
         # forward calculation
         for l in self.recognitionlayers:
             y = l(y)
-        mu = self.recognition_mean(y)
-        logvar = self.recognition_logvar(y)
+        mu = self._recognition_mean(y)
+        logvar = self._recognition_logvar(y)
         return mu, logvar
 
     # generator
@@ -435,8 +491,8 @@ class TSYConditionalVariationalAutoEncoder_SharedConvolutionalLayers(nn.Module):
         # forward calculation
         for l in self.generatorlayers:
             y = l(y)
-        mu = self.generator_mean(y)
-        logvar = self.generator_logvar(y)
+        mu = self._generator_mean(y)
+        logvar = self._generator_logvar(y)
         return mu, logvar
 
     # Forward calculation
