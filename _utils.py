@@ -3,7 +3,7 @@ _utils.py
 """
 import math
 import torch.nn as nn
-from gwnet.TSYLayers import TSYResidualBlock1d
+import gwnet.TSYLayers as TSYLayers
 
 def _cal_length(N, k, s=1, d=1, printflg=False):
     
@@ -28,20 +28,29 @@ def _cal_length4upsample(N, scale, printflg=False):
 class GenerateLayer():
     def __init__(self):
         self.LayersDict = {}
+        # Convolution
         self.LayersDict["conv1d"] = nn.Conv1d
         self.LayersDict["maxpool1d"] = nn.MaxPool1d
         self.LayersDict["avgpool1d"] = nn.AvgPool1d
         self.LayersDict["conv2d"] = nn.Conv2d
         self.LayersDict["maxpool2d"] = nn.MaxPool2d
         self.LayersDict["avgpool2d"] = nn.AvgPool2d
+        # Activation functions
         self.LayersDict["relu"] = nn.ReLU
         self.LayersDict["leaky relu"] = nn.LeakyReLU
+        self.LayersDict["negative relu"] = TSYLayers.TSYNegativeReLU
+        self.LayersDict["sigmoid"] = nn.Sigmoid
+        self.LayersDict["tanh"] = nn.Tanh
+        # Deconvolution
         self.LayersDict["upsample"] = nn.Upsample
         self.LayersDict["convtranspose1d"] = nn.ConvTranspose1d
+        # Utility
         self.LayersDict["flatten"] = nn.Flatten
-        self.LayersDict["linear"] = nn.Linear
         self.LayersDict["Unflatten"] = nn.Unflatten
-        self.LayersDict["residual block"] = TSYResidualBlock1d
+        # Linear
+        self.LayersDict["linear"] = nn.Linear
+        # Resnet (implemented by TSY)
+        self.LayersDict["residual block"] = TSYLayers.TSYResidualBlock1d
 
     def __call__(self, key):
         return self.LayersDict[key]

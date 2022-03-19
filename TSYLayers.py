@@ -32,3 +32,13 @@ class TSYResidualBlock1d(nn.Module):
 
     def _shortcut(self, in_channels, out_channels, stride):
         return nn.Conv1d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=stride)
+
+    
+class TSYNegativeReLU(nn.Module):
+    
+    def __init__(self):
+        super(TSYNegativeReLU, self).__init__()
+        self.relu = nn.ReLU()
+        
+    def forward(self,x):
+        return - self.relu(x)
