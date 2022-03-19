@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import sys
 
 
 class TSY_KLDiv_withStdNormal(nn.Module):
@@ -45,6 +46,12 @@ class CVAE_LogP(nn.Module):
 
     def forward(self, mu, logvar, label):
         var = logvar.exp()
+        if torch.isnan(var).any():
+            print("LopP Error: `var` is nan.")
+            sys.exit()
+        elif torch.isinf(var).any():
+            print("LopP Error: `var` is inf.")
+            sys.exit()
         neg_logp = logvar + (mu - label)**2.0 / (var + self.eps) + np.log(2.0*np.pi)
         return torch.mean( neg_logp.sum(dim=1) ) / 2.0
 
