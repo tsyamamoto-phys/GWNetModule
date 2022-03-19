@@ -2,6 +2,7 @@
 TSYLoss.py
 """
 
+from re import M
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -28,14 +29,29 @@ class TSY_KLDiv_withStdNormal(nn.Module):
 
 
 
-class CVAE_KLDiv(nn.Module):
+class CVAE_KLDiv_maybewrong(nn.Module):
     def __init__(self):
-        super(CVAE_KLDiv, self).__init__()
+        super(CVAE_KLDiv_maybewrong, self).__init__()
         
     def forward(self, mu1, logvar1, mu2, logvar2):
         var1 = logvar1.exp()
         var2 = logvar2.exp()
         kl_div = var2/var1 + (mu1 - mu2)**2.0 / var1 + logvar1 - logvar2 - 1.0
+        return torch.mean(kl_div.sum(dim=1) / 2.0)
+
+
+class CVAE_KLDiv(nn.Module):
+    def __init__(self):
+        super(CVAE_KLDiv, self).__init__()
+        
+    def forward(self, mu1, logvar1, mu2, logvar2):
+        '''
+        mu1, logvar1: prior
+        mu2, logvar2: recognition
+        '''
+        var1 = logvar1.exp()
+        var2 = logvar2.exp()
+        kl_div = 1.0 - var2/var1 - (mu1 - mu2)**2.0 / var1 - logvar1 + logvar2
         return torch.mean(kl_div.sum(dim=1) / 2.0)
 
 
@@ -46,12 +62,6 @@ class CVAE_LogP(nn.Module):
 
     def forward(self, mu, logvar, label):
         var = logvar.exp()
-        if torch.isnan(var).any():
-            print("LopP Error: `var` is nan.")
-            sys.exit()
-        elif torch.isinf(var).any():
-            print("LopP Error: `var` is inf.")
-            sys.exit()
         neg_logp = logvar + (mu - label)**2.0 / (var + self.eps) + np.log(2.0*np.pi)
         return torch.mean( neg_logp.sum(dim=1) ) / 2.0
 

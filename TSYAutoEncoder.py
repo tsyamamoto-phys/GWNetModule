@@ -425,7 +425,7 @@ class TSYConditionalVariationalAutoEncoder_SharedConvolutionalLayers(nn.Module):
             generatorlogvar_layers.append(gl.LayersDict[layername](**(l["params"])))
         self.generatorlogvar_layers = nn.ModuleList(generatorlogvar_layers)
         ########################################################################################################
- 
+
     def _prior_mean(self, x):
         for l in self.priormu_layers:
             x = l(x)
