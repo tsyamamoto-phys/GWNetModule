@@ -6,10 +6,10 @@ import math
 
 class TSYResidualBlock1d(nn.Module):
 
-    def __init__(self, in_channels, out_channels, hidden_channels, kernel_size=4, stride=2):
+    def __init__(self, in_channels, out_channels, hidden_channels, kernel_size=4, stride=2, padding_adjuster=1):
         super(TSYResidualBlock1d, self).__init__()
 
-        padding = math.floor((kernel_size - 1)/2) + 1
+        padding = math.floor((kernel_size - 1)/2) + padding_adjuster
 
         self.conv1 = nn.Conv1d(in_channels=in_channels, out_channels=hidden_channels, kernel_size=1)
         self.relu1 = nn.ReLU()
@@ -42,3 +42,4 @@ class TSYNegativeReLU(nn.Module):
         
     def forward(self,x):
         return - self.relu(x)
+

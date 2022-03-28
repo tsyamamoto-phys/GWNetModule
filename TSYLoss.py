@@ -30,11 +30,12 @@ class TSY_KLDiv_withStdNormal(nn.Module):
 
 
 class CVAE_KLDiv(nn.Module):
-    def __init__(self):
+    def __init__(self, eps=1e-8):
         super(CVAE_KLDiv, self).__init__()
+        self.eps = eps
         
     def forward(self, mu1, logvar1, mu2, logvar2):
-        var1 = logvar1.exp()
+        var1 = logvar1.exp() + self.eps
         var2 = logvar2.exp()
         kl_div = var2/var1 + (mu1 - mu2)**2.0 / var1 + logvar1 - logvar2 - 1.0
         return torch.mean(kl_div.sum(dim=1) / 2.0)
