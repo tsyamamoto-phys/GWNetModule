@@ -50,6 +50,17 @@ class CVAE_LogP(nn.Module):
         neg_logp = logvar + (mu - label)**2.0 / (var + self.eps) + np.log(2.0*np.pi)
         return torch.mean( neg_logp.sum(dim=1) ) / 2.0
 
+class CVAE_LogP_withcovariance(nn.Module):
+    def __init__(self, eps=1.0e-8):
+        super(CVAE_LogP_withcovariance, self).__init__()
+        self.eps = eps
+
+    def forward(self, mu, logvar, r, label):
+        var = logvar.exp()
+        neg_logp_diag = ( logvar + (mu - label)**2.0 / (var + self.eps) + np.log(2.0*np.pi) ).sum(dim=1)
+        neg_logp_offdiag = torch.log(1 - r**2.0) - 2.0 * r * (torch.sqrt(var) * (mu - label)).prod(dim=1)
+        return torch.mean( neg_logp_diag + neg_logp_offdiag ) / 2.0
+
 
 class CVAE_LogP_TruncatedGaussian(nn.Module):
     """

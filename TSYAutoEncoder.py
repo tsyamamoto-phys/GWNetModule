@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import json
+from scipy.linalg import sqrtm
 #import _utils as u
 from . import _utils as u
 
@@ -125,11 +126,12 @@ class TSYVariationalAutoEncoder(nn.Module):
 
 class TSYConditionalVariationalAutoEncoder(nn.Module):
 
-    def __init__(self, netstructure, cudaflg=False, device=None, kidx=-2):
+    def __init__(self, netstructure, cudaflg=False, device=None, kidx=-2, covarianceflg=False):
         super(TSYConditionalVariationalAutoEncoder, self).__init__()
 
         # Check cuda
         self.cudaflg = cudaflg
+        self.covarianceflg = covarianceflg
         self.gpudevice = device
         # Check net structure
         if isinstance(netstructure, str):
@@ -190,6 +192,8 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         Nin = self.decoderlinear[kidx].out_features  # I need to sophisticated this part.
         self.decoder_mean = nn.Linear(Nin, self.Nout)
         self.decoder_logvar = nn.Linear(Nin, self.Nout)
+        if self.covarianceflg:
+            self.decoder_cov = nn.Linear(Nin, 1)
         #########################################################################################################
 
 
@@ -241,7 +245,12 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
             y = l(y)
         mu = self.decoder_mean(y)
         logvar = self.decoder_logvar(y)
-        return mu, logvar
+        if self.covarianceflg:
+            r = self.decoder_cov(y)
+            r = torch.tanh(r)
+            return mu, logvar, r
+        else:
+            return mu, logvar
         #######################################################
 
     # Forward calculation
@@ -255,8 +264,13 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         std2 = logvar2.mul(0.5).exp_()
         z = eps.mul(std2).add_(mu2)
         # Decode
-        mu_x, logvar_x = self.decode(z, y)
-        return mu_x, logvar_x, mu1, logvar1, mu2, logvar2
+        if self.covarianceflg:
+            mu_x, logvar_x, r = self.decode(z, y)
+            return mu_x, logvar_x, r, mu1, logvar1, mu2, logvar2
+        else:
+            mu_x, logvar_x = self.decode(z, y)
+            return mu_x, logvar_x, mu1, logvar1, mu2, logvar2
+        
 
     # prediction
     def forward_prediction(self, y):
@@ -268,8 +282,12 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         std = logvar.mul(0.5).exp_()
         z = eps.mul(std).add_(mu)
         # Decode
-        mu_x, logvar_x = self.decode(z, y)
-        return mu_x, logvar_x, mu, logvar
+        if self.covarianceflg:
+            mu_x, logvar_x, r = self.decode(z, y)
+            return mu_x, logvar_x, r, mu, logvar
+        else:
+            mu_x, logvar_x = self.decode(z, y)
+            return mu_x, logvar_x, mu, logvar
 
     # inference
     def forward_inference(self, y, Nloop=1000, Nbatch=None):
@@ -310,14 +328,21 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
             if self.cudaflg: eps = eps.cuda(self.gpudevice)
             z = eps.mul(std_enc).add_(mu)
             # Decode
-            mu_x, logvar_x = self.decode(z, ytiled)
-            # Random sampling
-            eps = torch.randn_like(mu_x)
-            if self.cudaflg: eps = eps.cuda(self.gpudevice)
-            std_dec = logvar_x.mul(0.5).exp_()
-            pred = eps.mul(std_dec).add_(mu_x)
-            if self.cudaflg:
-                predlist[k * Nbatch : (k+1) * Nbatch] = pred.cpu()
+            if self.covarianceflg:
+                mu_x, logvar_x, r_x = self.decode(z, ytiled)
+                eps = torch.randn_like(mu_x)
+                if self.cudaflg: eps = eps.cuda(self.gpudevice)
+                std_dec = logvar_x.mul(0.5).exp_()
+
+            else:
+                mu_x, logvar_x = self.decode(z, ytiled)
+                # Random sampling
+                eps = torch.randn_like(mu_x)
+                if self.cudaflg: eps = eps.cuda(self.gpudevice)
+                std_dec = logvar_x.mul(0.5).exp_()
+                pred = eps.mul(std_dec).add_(mu_x)
+                if self.cudaflg:
+                    predlist[k * Nbatch : (k+1) * Nbatch] = pred.cpu()
 
             """
             if 'outlist' in locals():
