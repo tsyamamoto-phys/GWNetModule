@@ -330,10 +330,7 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
             # Decode
             if self.covarianceflg:
                 mu_x, logvar_x, r_x = self.decode(z, ytiled)
-                eps = torch.randn_like(mu_x)
-                if self.cudaflg: eps = eps.cuda(self.gpudevice)
-                std_dec = logvar_x.mul(0.5).exp_()
-
+                pred = self._get_sample_from_multivariateGaussian_with_covariance(mu_x, logvar_x, r_x)
             else:
                 mu_x, logvar_x = self.decode(z, ytiled)
                 # Random sampling
@@ -341,8 +338,9 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
                 if self.cudaflg: eps = eps.cuda(self.gpudevice)
                 std_dec = logvar_x.mul(0.5).exp_()
                 pred = eps.mul(std_dec).add_(mu_x)
-                if self.cudaflg:
-                    predlist[k * Nbatch : (k+1) * Nbatch] = pred.cpu()
+
+            if self.cudaflg:
+                predlist[k * Nbatch : (k+1) * Nbatch] = pred.cpu()
 
             """
             if 'outlist' in locals():
@@ -357,6 +355,22 @@ class TSYConditionalVariationalAutoEncoder(nn.Module):
         mu, logvar = self.encode1(y)        
         return mu, logvar
 
+    def _get_sample_from_multivariateGaussian_with_covariance(self, mu, logvar, r):
+        var = torch.exp(logvar)
+        std = torch.sqrt(var)
+        eps = torch.randn_like(mu)
+        if self.cudaflg: eps = eps.cuda(self.gpudevice)
+
+        trSigma = torch.sum(var, dim=1, keepdim=True)
+        detSigma = (1.0 - r**2.0) * torch.prod(var, dim=1, keepdim=True)
+        s_factor = torch.sqrt(detSigma)
+        t_factor = torch.sqrt(trSigma + 2.0 * s_factor)
+        pred = torch.empty_like(mu)
+
+        pred[:,0] = mu[:,0] + ((var[:,0] + s_factor[:,0]) * eps[:,0] + r[:,0] * std[:,0] * std[:,1] * eps[:,1]) / t_factor[:,0
+        ]
+        pred[:,1] = mu[:,1] + (r[:,0] * std[:,0] * std[:,1] * eps[:,0] + (var[:,1] * s_factor[:,0]) * eps[:,1]) / t_factor[:,0]
+        return pred
 
     
     
