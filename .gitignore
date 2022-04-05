@@ -1,5 +1,6 @@
 __pycache__
 example/
 .ipynb_checkpoints/
+.python-version
 env/
 note/

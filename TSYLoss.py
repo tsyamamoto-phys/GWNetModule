@@ -81,3 +81,14 @@ class CVAE_LogP_TruncatedGaussian(nn.Module):
         mask[:,1] = 1.0
         
         return torch.mean( (neg_logp_erfterm * mask + neg_logp_Gaussian).sum(dim=1) ) / 2.0
+
+
+class CVAE_logp_BCE(nn.Module):
+    """
+    Binary Cross Entropy loss
+    """
+    def __init__(self):
+        super(CVAE_logp_BCE, self).__init__()
+        
+    def forward(self, preds, targets):
+        return torch.mean(torch.sum( -(targets * torch.log(preds) + (1.0 - targets) * torch.log(1.0 - preds)), dim=1))
