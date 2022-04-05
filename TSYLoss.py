@@ -91,4 +91,4 @@ class CVAE_logp_BCE(nn.Module):
         super(CVAE_logp_BCE, self).__init__()
         
     def forward(self, preds, targets):
-        return torch.mean(torch.sum( -(targets * torch.log(preds) + (1.0 - targets) * torch.log(1.0 - preds)), dim=1))
+        return - torch.mean(torch.sum( targets * torch.log(preds/targets) + (1.0 - targets) * torch.log((1.0 - preds)/(1.0 - targets)), dim=1))
