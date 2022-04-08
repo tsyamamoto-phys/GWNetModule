@@ -851,7 +851,7 @@ class TSYConditionalVariationalAutoEncoder_BernoulliProbability_SharedConvolutio
             # Decode
             preds = self.generator(z, ytiled)
             if self.cudaflg:
-                predlist[k * Nbatch : (k+1) * Nbatch] = pred.cpu()
+                predlist[k * Nbatch : (k+1) * Nbatch] = preds.cpu()
         return predlist
 
     def _get_output_of_encoder(self, y):
