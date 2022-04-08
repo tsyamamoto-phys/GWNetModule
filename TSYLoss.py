@@ -73,13 +73,11 @@ class CVAE_LogP_TruncatedGaussian(nn.Module):
         self.eps = eps
 
     def forward(self, mu, logvar, label):
-
         var = logvar.exp()
         neg_logp_Gaussian = logvar + (mu - label)**2.0 / (self.eps + var) + np.log(2.0*np.pi)
         neg_logp_erfterm = torch.log( 0.5 - 0.5 * torch.erf((self.a - mu) / torch.sqrt(2.0 * var + self.eps)) )
         mask = torch.zeros_like(neg_logp_erfterm)
         mask[:,1] = 1.0
-        
         return torch.mean( (neg_logp_erfterm * mask + neg_logp_Gaussian).sum(dim=1) ) / 2.0
 
 

@@ -1,6 +1,7 @@
 """
 TSYAutoEncoder.py
 """
+from typing import ParamSpec
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -862,7 +863,37 @@ class TSYConditionalVariationalAutoEncoder_BernoulliProbability_SharedConvolutio
         return mu, logvar
 
 
+    def freeze_convlayers(self):
+        for param in self.convlayers.parameters():
+            param.requires_grad = False
 
+    def defrost_convlayers(self):
+        for param in self.convlayers.parameters():
+            param.requires_grad = True
+    
+    def freeze_generator(self):
+        for param in self.generatorlayers.parameters():
+            param.requires_grad = False
+
+    def defrost_generator(self):
+        for param in self.generatorlayers.parameters():
+            param.requires_grad = True
+    
+    def freeze_recognizer(self):
+        for param in self.recognitionlayers.parameters():
+            param.requires_grad = False
+        for param in self.recognitionlogvar_layers.parameters():
+            param.requires_grad = False
+        for param in self.recognitionmu_layers.parameters():
+            param.requires_grad = False
+
+    def defrost_recognizer(self):
+        for param in self.recognitionlayers.parameters():
+            param.requires_grad = True
+        for param in self.recognitionlogvar_layers.parameters():
+            param.requires_grad = True
+        for param in self.recognitionmu_layers.parameters():
+            param.requires_grad = True
 
 
 """
