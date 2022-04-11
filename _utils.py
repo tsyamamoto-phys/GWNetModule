@@ -51,6 +51,7 @@ class GenerateLayer():
         self.LayersDict["linear"] = nn.Linear
         # Resnet (implemented by TSY)
         self.LayersDict["residual block"] = TSYLayers.TSYResidualBlock1d
+        self.LayersDict["residual block 2d"] = TSYLayers.TSYResidualBlock2d
 
     def __call__(self, key):
         return self.LayersDict[key]
