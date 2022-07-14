@@ -52,6 +52,9 @@ class GenerateLayer():
         # Resnet (implemented by TSY)
         self.LayersDict["residual block"] = TSYLayers.TSYResidualBlock1d
         self.LayersDict["residual block 2d"] = TSYLayers.TSYResidualBlock2d
+        # Batch normalization
+        self.LayersDict["batch norm 1d"] = nn.BatchNorm1d
+        self.LayersDict["batch norm 2d"] = nn.BatchNorm2d
 
     def __call__(self, key):
         return self.LayersDict[key]
