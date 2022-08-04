@@ -46,10 +46,10 @@ class CVAE_LogP(nn.Module):
         super(CVAE_LogP, self).__init__()
         self.eps = eps
 
-    def forward(self, mu, logvar, label):
+    def forward(self, mu, logvar, label, suppression=1.0):
         var = logvar.exp()
         neg_logp = logvar + (mu - label)**2.0 / (var + self.eps) + np.log(2.0*np.pi)
-        return torch.mean( neg_logp.sum(dim=1) ) / 2.0
+        return torch.mean( neg_logp.sum(dim=1) ) / 2.0 * suppression
 
 class CVAE_LogP_withcovariance(nn.Module):
     def __init__(self, eps=1.0e-8):
