@@ -30,29 +30,29 @@ class TSY_KLDiv_withStdNormal(nn.Module):
 
 
 class CVAE_KLDiv(nn.Module):
-    def __init__(self, eps=1e-8):
+    def __init__(self, eps=0.0):
         super(CVAE_KLDiv, self).__init__()
         self.eps = eps
         
-    def forward(self, mu1, logvar1, mu2, logvar2, suppression=1.0):
+    def forward(self, mu1, logvar1, mu2, logvar2):
         var1 = logvar1.exp() + self.eps
         var2 = logvar2.exp()
         kl_div = var2/var1 + (mu1 - mu2)**2.0 / var1 + logvar1 - logvar2 - 1.0
-        return torch.mean(kl_div.sum(dim=1) / 2.0) * suppression
+        return torch.mean(kl_div.sum(dim=1) / 2.0)
 
 
 class CVAE_LogP(nn.Module):
-    def __init__(self, eps=1.0e-8):
+    def __init__(self, eps=0.0):
         super(CVAE_LogP, self).__init__()
         self.eps = eps
 
-    def forward(self, mu, logvar, label, suppression=1.0):
+    def forward(self, mu, logvar, label):
         var = logvar.exp()
         neg_logp = logvar + (mu - label)**2.0 / (var + self.eps) + np.log(2.0*np.pi)
-        return torch.mean( neg_logp.sum(dim=1) ) / 2.0 * suppression
+        return torch.mean( neg_logp.sum(dim=1) ) / 2.0
 
 class CVAE_LogP_withcovariance(nn.Module):
-    def __init__(self, eps=1.0e-8):
+    def __init__(self, eps=0.0):
         super(CVAE_LogP_withcovariance, self).__init__()
         self.eps = eps
 
